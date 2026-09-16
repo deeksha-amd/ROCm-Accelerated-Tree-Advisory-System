@@ -20,6 +20,11 @@ topography/
 satellite/
 climate_recent/
 climate_2000_2015/
+climate_future_2050/
+maps/*.tif
+suggest.html
 validation/
 *.csv
 !gbif_500_species.csv
+!data/species_traits.csv
+!models/metrics.csv

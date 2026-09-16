@@ -20,7 +20,7 @@ What each dataset is, where it came from, and what we assume when using it.
 | `soil_data/aligned_10m/` | 11 soil properties x 2 depths = 22 layers | OpenLandMap + SoilGrids | 2020-2022 / 2020 |
 | `soil_data/soilgrids_5km/` | Raw reference copies. **Do not train on these** | SoilGrids 2.0 | 2020 |
 | `topography/` | Elevation on the shared grid. Nothing else | GEDTM30 v1.2 | 2006-2015 data |
-| `satellite/` | 22 layers: land cover, NDVI, soil moisture. **Mostly filters, not predictors** | ESA CCI + PKU GIMMS | 2020 / 2021-22 / 2022-24 |
+| `satellite/` | Land-cover **filters** for `recommend.py` (water, built-up, crop, snow, tree, exclusion). Vegetation is **not** an XGBoost input. Built by `satellite_rasters.py` | ESA WorldCover 10 m (2021 v200; 2020 fallback) | 2021 |
 | `validation/` | Evidence for why these sources were picked. **Not a model input** | various | — |
 
 ---
@@ -99,20 +99,18 @@ land we actually advise on. Tree cover also separates **90% of 40 species in the
 same direction** (temperature: 52%) — it answers "are there trees here?", not
 "what niche is this?".
 
-- **Safe as predictors:** `soilmoisture_mean`, `soilmoisture_amplitude` —
-  microwave readings, not greenness. But they reach only **79%** of GBIF points,
-  and the holes sit under dense canopy (the same flaw that ruled out Copernicus).
+The POC filter stack is built by `python satellite_rasters.py`: ESA WorldCover
+10 m class maps, streamed as COG overviews and averaged onto the shared 10-arc-
+minute grid. `recommend.py` reads those GeoTIFFs **after** scoring, never as `x`.
+
 - **Filters only:** built-up, water, snow/ice, land and cropland fractions, plus
   `planting_exclusion_mask_10m.tif`. Apply to model **output**, never input.
-  46.6% of land carries no exclusion.
-- **Do not use:** tree / broadleaf / needleleaf / shrub / grass fractions, and
-  all four NDVI layers.
-
-**Coverage:** land cover **99.93%** of GBIF points (matches climate); NDVI
-**93.4%** (gaps are desert and ice, masked at source); soil moisture **79.2%**.
-
-**Known limit:** tree fraction understates open woodland — Iberia reads 8% vs
-22% in 10 m data — but agrees within a few points in closed tropical forest.
+- **Do not use as XGBoost features:** tree / broadleaf / needleleaf / shrub /
+  grass fractions, and any NDVI layer.
+- **Optional extra predictor (retrain required):** `soilmoisture_mean` /
+  `soilmoisture_amplitude` — microwave readings, not greenness. Not produced by
+  the default downloader; they cover only ~79% of GBIF points, with holes under
+  dense canopy.
 
 ---
 
