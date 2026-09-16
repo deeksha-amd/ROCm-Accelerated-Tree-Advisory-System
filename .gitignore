@@ -5,3 +5,21 @@ __pycache__/
 .Python
 .pytest_cache/
 .ipynb_checkpoints/
+
+# 2.6 GB of monthly-weather archives cached by recent_climate_rasters.py;
+# re-downloadable, so not worth committing
+climate_monthly_src/
+
+# 2.3 GB of source imagery cached by satellite_rasters.py; also re-downloadable
+satellite/raw/
+
+# Derived raster blocks, ~3.2 GB total. Regenerate with the *_rasters.py scripts
+# rather than committing; GitHub rejects files over 100 MB.
+soil_data/
+topography/
+satellite/
+climate_recent/
+climate_2000_2015/
+validation/
+*.csv
+!gbif_500_species.csv
