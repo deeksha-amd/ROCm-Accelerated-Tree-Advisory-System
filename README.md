@@ -1,8 +1,14 @@
 # ROCm tree advisory (USA 1 km)
 
-One XGBoost model per tree species: given a location’s climate, soil, and terrain, how much does it look like places where that species has been recorded? Latitude/longitude only look up the raster cell. They are not features.
+One XGBoost model per tree species. A pin only looks up the raster cell;
+latitude and longitude are **not** features. The score `p` is **record-likeness**:
+how much that 1 km cell looks like GBIF records of the species *versus other
+listed trees* (target-group background). It is not a planting permit, survival
+odds, or a backyard shade model.
 
-The **main path is the contiguous USA at 1 km** (30 arcsec). An older global **18 km** demo lives in `poc/`. A separate **deep-learning SDM** pipeline lives in `deep_learning_sdm/` (see `deep_learning_sdm/COMMANDS.md`).
+The **main path is the contiguous USA at 1 km** (30 arcsec). An older global
+**18 km** demo lives in `poc/`. A separate **deep-learning SDM** pipeline lives
+in `deep_learning_sdm/` (see `deep_learning_sdm/COMMANDS.md`).
 
 Run every command from this directory (`hackathon_2026/`), with the venv on:
 
@@ -14,15 +20,32 @@ Training needs a GPU (`device=cuda`, ROCm on MI300X). Recommend and maps run on 
 
 ---
 
+## A git clone cannot run Austin
+
+`metrics.csv` and `feature_names.txt` are in git. The rest of the USA runtime
+is **gitignored** (GeoTIFFs are huge; JSON boosters are many):
+
+| Needed locally | Typical path | If missing |
+|---|---|---|
+| 1 km climate / soil / terrain | `data/country_data/USA/{climate,soil,topography}_30s/` | copy from the training machine |
+| Saved boosters | `data/models_usa_30s/*.json` | copy, or train (below) |
+| Optional 2050 BIO | `data/country_data/USA/climate_future_2050_30s/` | `python future_climate_usa_30s.py` |
+| Optional 1 km satellite filters | `data/country_data/USA/satellite_30s/` | `python data/scripts/satellite_rasters_usa_30s.py` |
+
+`recommend_usa_30s.py` exits with that list rather than scoring on empty folders.
+Do **not** point USA recommend at `data/satellite/` (the 18 km global filters).
+
+---
+
 ## Layout
 
 | Path | Role |
 |---|---|
 | `xgboost_training_usa_30s.py` | Train USA 1 km models → `data/models_usa_30s/` |
 | `clean_species_usa_30s.py` | Clean + thin US GBIF onto the 1 km grid |
-| `recommend_usa_30s.py` | Pin → top 5 USA trees (today + 2050) |
+| `recommend_usa_30s.py` | Pin → top 5 plantable trees (today + 2050) |
 | `future_climate_usa_30s.py` | Build honest 1 km 2050 BIO (once) |
-| `suitability_maps_usa_30s.py` | One-species today vs 2050 map |
+| `suitability_maps_usa_30s.py` | One-species today vs 2050 record-likeness map |
 | `poc/` | Global 18 km train / recommend / oak–Seville maps |
 | `data/` | Rasters, GBIF, species lists, saved models |
 | `data/scripts/` | Downloaders (climate, soil, topography, satellite, GBIF) |
@@ -35,9 +58,9 @@ Where each raster came from and what not to train on: `DATA_OVERVIEW.md`.
 
 ---
 
-## USA 1 km — recommend (models already on disk)
+## USA 1 km — recommend (needs local models + rasters)
 
-About 249 species are saved under `data/models_usa_30s/`. You do not need to retrain to demo a pin.
+When the table above is on disk:
 
 ```bash
 # Austin
@@ -47,7 +70,11 @@ python recommend_usa_30s.py --lat 30.2672 --lon -97.7431 --goal shade --html map
 python recommend_usa_30s.py --address "Austin, Texas" --goal shade --html maps/austin.html
 ```
 
-Open `maps/austin.html`. The page shows lat/lon, a 1 km cell, today vs 2050 bars, and which climate/soil layers the models use most.
+Open `maps/austin.html`. The page shows lat/lon, a 1 km cell, today vs 2050
+record-likeness bars, and **species-wide** XGBoost gain (not a local explanation
+of the pin). Invasive and naturalised trees (chinaberry, tree-of-heaven, …)
+are trained so the model knows them, then **dropped from the top-5** and listed
+under “do not plant”.
 
 CONUS only. Pins outside the lower-48 envelope are rejected.
 
@@ -56,6 +83,13 @@ If 2050 bars are missing, build the 1 km future BIO once (does not retrain):
 ```bash
 python future_climate_usa_30s.py
 python recommend_usa_30s.py --lat 30.2672 --lon -97.7431 --html maps/austin.html
+```
+
+1 km satellite mix (WorldCover on the same cell as the map box):
+
+```bash
+python data/scripts/satellite_rasters_usa_30s.py --smoke   # Austin + Portland tiles
+# python data/scripts/satellite_rasters_usa_30s.py         # full CONUS, slower
 ```
 
 One-species map (default live oak, south-central US crop):
@@ -93,7 +127,7 @@ Needs ~6 GB RAM for the 61-layer stack. Writes `data/models_usa_30s/*.json` and 
 Separate contract: 42 layers on a 2160×1080 WorldClim grid, models in `data/models/`.
 
 ```bash
-python data/scripts/satellite_rasters.py          # site filters, not XGBoost features
+python data/scripts/satellite_rasters.py          # 18 km site filters, not XGBoost features
 python poc/recommend.py --lat 51.51 --lon -0.13 --goal shade --html poc/maps/suggest.html
 python poc/suitability_maps.py --species "Quercus robur"
 ```
@@ -112,7 +146,11 @@ python data/scripts/current_climate_rasters.py
 python data/scripts/future_climate_rasters.py
 python data/scripts/soil_rasters.py
 python data/scripts/topography_rasters.py
-python data/scripts/satellite_rasters.py
+python data/scripts/satellite_rasters.py            # 18 km POC filters
+python data/scripts/satellite_rasters_usa_30s.py    # USA 1 km filters
 ```
 
-USA 1 km climate/soil/terrain are already in `data/country_data/USA/`. Satellite vegetation is a **filter after scoring**, never an XGBoost input.
+USA 1 km climate/soil/terrain live in `data/country_data/USA/` (gitignored
+GeoTIFFs). Satellite vegetation is a **filter after scoring**, never an XGBoost
+input. The deep-learning pipeline uses a separate `country_data/` tree at the
+repo root.

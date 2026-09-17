@@ -1,7 +1,11 @@
 """USA 1 km planting shortlist from data/models_usa_30s/.
 
-Does not import or overwrite poc/recommend.py (the global 18 km POC).
+p is record-likeness vs other listed trees, not planting suitability.
+Invasive/naturalised checklist trees are dropped from the top-5.
+Satellite filters come from data/country_data/USA/satellite_30s/ (1 km),
+never from the 18 km data/satellite/ stack.
 
+    python data/scripts/satellite_rasters_usa_30s.py --smoke
     python future_climate_usa_30s.py
     python recommend_usa_30s.py --lat 30.2672 --lon -97.7431 --html maps/austin.html
     python suitability_maps_usa_30s.py --species "Quercus virginiana"
@@ -10,8 +14,10 @@ Does not import or overwrite poc/recommend.py (the global 18 km POC).
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import os
+import re
 import sys
 
 import numpy as np
@@ -31,8 +37,6 @@ from poc.catalog import (
 from poc.recommend import (
     _pixel_value,
     bio_number,
-    confidence,
-    future_note,
     geocode,
     load_booster,
     native_label,
@@ -40,7 +44,7 @@ from poc.recommend import (
     sample_satellite,
     tag_cell_status,
 )
-from poc.recommend_html import write_html
+from poc.recommend_html import write_html, _safe
 from repo_paths import data
 from clean_species_usa_30s import TEMPLATE, read_grid
 from xgboost_training_usa_30s import MODEL_DIR, collect_predictor_paths
@@ -49,6 +53,27 @@ TOP_N = 5
 METRICS_PATH = os.path.join(MODEL_DIR, "metrics.csv")
 USA_TRAITS_CSV = data("usa_tree_species_list.csv")
 FUTURE_30S_DIR = data("country_data", "USA", "climate_future_2050_30s")
+SATELLITE_DIR = data("country_data", "USA", "satellite_30s")
+SATELLITE_FILES = {
+    "exclusion": "planting_exclusion_mask_30s.tif",
+    "water": "water_fraction_30s.tif",
+    "snow": "snow_ice_fraction_30s.tif",
+    "built": "built_up_fraction_30s.tif",
+    "crop": "cropland_fraction_30s.tif",
+    "tree": "tree_cover_fraction_30s.tif",
+    "ndvi": "ndvi_mean_30s.tif",
+}
+DO_NOT_PLANT_RE = re.compile(
+    r"\b(invasive|naturalised|naturalized|noxious)\b", re.I
+)
+SCORE_DISCLAIMER = (
+    "p is record-likeness: how much this 1 km cell looks like GBIF records of "
+    "that species versus other listed trees (target-group background). It is "
+    "not a planting permit, survival odds, or a backyard shade model."
+)
+IMPORTANCE_CAPTION = (
+    "Species-wide XGBoost gain (all US training cells), not why this pin scored:"
+)
 
 BIO_PLAIN = {
     1: "yearly temperature",
@@ -115,10 +140,11 @@ REGION_TO_NATIVE = {
 }
 GRID_UI = {
     "label": "1 km",
-    "marker": "Score is for this ~1 km climate cell, not a backyard.",
+    "marker": "Score is for this ~1 km cell vs other listed trees, not a backyard.",
     "note": (
-        "The box on the map is one 30-arc-second cell (~1 km). "
-        "Yard shade, frost pockets and watering are still not in the model."
+        "The box is one 30-arc-second cell (~1 km). "
+        + SCORE_DISCLAIMER
+        + " Yard shade, frost pockets and watering are not in the model."
     ),
 }
 
@@ -147,8 +173,7 @@ def load_usa_traits(species_list):
         notes = row.get("notes")
         if pd.notna(notes) and str(notes).strip():
             notes = str(notes).strip()
-            low = notes.lower()
-            if "invasive" in low:
+            if DO_NOT_PLANT_RE.search(notes):
                 table.at[name, "warning"] = notes
                 table.at[name, "invasive_in"] = "n_america"
             else:
@@ -159,6 +184,66 @@ def load_usa_traits(species_list):
                     care = f"{care} {notes}"
                 table.at[name, "care"] = care
     return table.reset_index()
+
+
+def do_not_plant(traits):
+    """True when the US checklist marks the tree invasive/naturalised/noxious."""
+    if str(traits.get("invasive_in") or "").strip():
+        return True
+    blob = " ".join(
+        str(traits.get(key) or "")
+        for key in ("warning", "care", "notes")
+    )
+    return bool(DO_NOT_PLANT_RE.search(blob))
+
+
+def require_usa_runtime():
+    """Clone-honest checks: rasters and JSON boosters are gitignored."""
+    if not os.path.isfile(TEMPLATE):
+        raise SystemExit(
+            "USA 1 km climate template missing:\n"
+            f"  {TEMPLATE}\n"
+            "A git clone does not include rasters (gitignored under "
+            "data/country_data/). Copy climate_30s/, soil_30s/, and "
+            "topography_30s/ from the machine that built the country stack."
+        )
+    if not os.path.isfile(METRICS_PATH):
+        raise SystemExit(
+            f"Missing {METRICS_PATH}. Train with:\n"
+            "  python xgboost_training_usa_30s.py --full-list --skip-existing"
+        )
+    n_json = len(glob.glob(os.path.join(MODEL_DIR, "*.json")))
+    if n_json == 0:
+        raise SystemExit(
+            f"No boosters in {MODEL_DIR}/*.json.\n"
+            "metrics.csv is tracked; the JSON files are gitignored. "
+            "Copy them from the training machine, or train:\n"
+            "  python xgboost_training_usa_30s.py --full-list --skip-existing"
+        )
+
+
+def confidence(p, auc, n_folds):
+    if p >= 0.70 and auc >= 0.85 and n_folds >= 4:
+        return "Looks like records"
+    if p >= 0.50 and auc >= 0.75:
+        return "Somewhat like records"
+    return "Weak likeness"
+
+
+def future_note(p, p_2050):
+    if p_2050 is None or not np.isfinite(p_2050):
+        return ""
+    delta = p_2050 - p
+    if p_2050 >= 0.70 and delta >= -0.05:
+        return "2050 BIO still looks like this species' records (ssp245, one GCM)."
+    if delta <= -0.15:
+        return (
+            f"Record-likeness drops by {abs(delta):.0%} under 2050 BIO "
+            "(same soil; not a second training run)."
+        )
+    if delta >= 0.10:
+        return f"Record-likeness rises by {delta:.0%} under 2050 BIO as this cell warms."
+    return "2050 BIO barely moves this species' record-likeness."
 
 
 def sample_predictors(lat, lon):
@@ -363,11 +448,20 @@ def reason_for(species, traits, p, names, values):
             drain_bit = ", though the soil here holds water"
 
     if p >= 0.70:
-        lead = f"{common} is a strong climate-and-soil match for {climate_bit}{drain_bit}."
+        lead = (
+            f"{common}: this 1 km cell looks more like GBIF records of this "
+            f"species than like other listed trees, given {climate_bit}{drain_bit}."
+        )
     elif p >= 0.50:
-        lead = f"{common} can work in {climate_bit}{drain_bit}, with some care."
+        lead = (
+            f"{common}: this cell is somewhat like recorded sites of this species "
+            f"({climate_bit}{drain_bit}). Not a planting permit."
+        )
     else:
-        lead = f"{common} is only a borderline match for {climate_bit}{drain_bit}."
+        lead = (
+            f"{common}: only a weak resemblance to recorded sites "
+            f"({climate_bit}{drain_bit})."
+        )
     return lead
 
 
@@ -378,14 +472,23 @@ def assert_conus(lat, lon):
         raise SystemExit(
             f"Pin {lat:.4f}, {lon:.4f} is outside the lower-48 1 km grid "
             f"(bbox {west}, {south}, {east}, {north}). "
-            "Use recommend.py for the global 18 km models."
+            "Use python poc/recommend.py for the global 18 km models."
         )
 
 
 def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAULT,
               country=""):
+    require_usa_runtime()
     assert_conus(lat, lon)
-    names, values = sample_predictors(lat, lon)
+    try:
+        names, values = sample_predictors(lat, lon)
+    except FileNotFoundError as exc:
+        raise SystemExit(
+            f"{exc}\n"
+            "A git clone does not include data/country_data/USA GeoTIFFs. "
+            "Copy climate_30s/, soil_30s/, and topography_30s/ from the "
+            "machine that built the country stack."
+        ) from exc
     missing = [n for n, v in zip(names, values) if not np.isfinite(v)]
     n_bio_missing = sum(1 for n in missing if "bio_" in n)
     if n_bio_missing or len(missing) > 15:
@@ -403,7 +506,21 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
             "XGBoost treats those as missing rather than as average soil."
         )
 
-    sat = sample_satellite(lat, lon)
+    sat = sample_satellite(
+        lat,
+        lon,
+        satellite_dir=SATELLITE_DIR,
+        files=SATELLITE_FILES,
+        missing_hint=(
+            "No USA 1 km satellite filters yet — run "
+            "python data/scripts/satellite_rasters_usa_30s.py "
+            "(do not use the 18 km data/satellite/ stack). Skipping water/city checks."
+        ),
+        grain_note=(
+            "Satellite mix is ESA WorldCover class fractions on this 1 km cell, "
+            "not the global 18 km filters."
+        ),
+    )
     if missing_note:
         sat.setdefault("notes", []).insert(0, missing_note)
     site = site_plain_language(names, values)
@@ -412,7 +529,8 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
     saved = load_saved_models(min_auc=min_auc, metrics_path=METRICS_PATH)
     if saved.empty:
         raise SystemExit(
-            f"No saved USA 1 km models in {METRICS_PATH} passed the AUC gate. "
+            f"No saved USA 1 km models in {METRICS_PATH} passed the AUC gate "
+            f"(or their .json files are missing under {MODEL_DIR}). "
             "Train with: python xgboost_training_usa_30s.py --full-list --skip-existing"
         )
 
@@ -426,6 +544,7 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
     values_2050, future_err = sample_future_usa(names, values, lat, lon)
     x2050 = None if values_2050 is None else values_2050.reshape(1, -1)
     scored = []
+    avoided = []
     for rec in saved.itertuples(index=False):
         species = rec.species
         traits = (
@@ -445,6 +564,18 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
         model = load_booster(rec.model_path)
         p = float(model.predict_proba(x)[0, 1])
         if p < 0.30:
+            continue
+        if do_not_plant(traits):
+            avoided.append({
+                "species": species,
+                "common_name": traits.get("common_name") or species,
+                "p": p,
+                "auc": float(rec.auc),
+                "warning": (
+                    "" if str(traits.get("warning") or "").lower() in {"", "nan", "none"}
+                    else traits.get("warning")
+                ),
+            })
             continue
         p_2050 = None
         delta = None
@@ -472,7 +603,9 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
         })
 
     scored.sort(key=lambda r: r["rank_score"], reverse=True)
+    avoided.sort(key=lambda r: r["p"], reverse=True)
     return {
+        "title": "Trees that look like recorded sites here",
         "lat": lat,
         "lon": lon,
         "country": country or "US",
@@ -483,6 +616,8 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
         "goal": goal,
         "sun": sun,
         "n_models": int(len(saved)),
+        "importance_caption": IMPORTANCE_CAPTION,
+        "disclaimer": SCORE_DISCLAIMER,
         "future": {
             "available": values_2050 is not None,
             "path": FUTURE_30S_DIR,
@@ -495,13 +630,14 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
             ),
         },
         "picks": scored[:top],
+        "avoid": avoided[:8],
     }
 
 
 def print_report(result, address=None):
     print()
     print("=" * 64)
-    print("USA 1 km tree suggestions")
+    print("USA 1 km record-likeness shortlist")
     print("=" * 64)
     where = address or f"{result['lat']:.4f}, {result['lon']:.4f}"
     print(f"Place:  {where}")
@@ -534,33 +670,44 @@ def print_report(result, address=None):
 
     if not result["picks"]:
         print()
-        print("No species cleared the match + goal filters. Try --goal any or --min-auc 0.60.")
-        return
+        print("No species cleared the record-likeness + goal filters. Try --goal any or --min-auc 0.60.")
+        print()
+    else:
+        print()
+        print(f"Top {len(result['picks'])} of {result['n_models']} models (invasive/naturalised dropped):")
+        print()
+        for i, pick in enumerate(result["picks"], 1):
+            print(f"{i}. {pick['common_name']}  ({pick['species']})")
+            print(
+                f"   {pick['confidence']}   today {pick['p']:.0%}",
+                end="",
+            )
+            if pick.get("p_2050") is not None:
+                print(f"   2050 {pick['p_2050']:.0%}", end="")
+            print(f"   model AUC {pick['auc']:.2f}")
+            print(f"   {pick['reason']}")
+            if pick.get("future_note"):
+                print(f"   2050: {pick['future_note']}")
+            fi = pick.get("feature_importance") or []
+            if fi:
+                bits = [f"{row['label']} {row['share']:.0%}" for row in fi[:5]]
+                caption = result.get("importance_caption") or IMPORTANCE_CAPTION
+                print("   " + caption + " " + ", ".join(bits))
+            print(f"   {pick['native']}")
+            if pick["care"]:
+                print(f"   Care: {pick['care']}")
+            if pick["warning"]:
+                print(f"   Warning: {pick['warning']}")
+            print()
 
-    print()
-    print(f"Top {len(result['picks'])} of {result['n_models']} climate-vetted trees:")
-    print()
-    for i, pick in enumerate(result["picks"], 1):
-        print(f"{i}. {pick['common_name']}  ({pick['species']})")
-        print(
-            f"   {pick['confidence']}   today {pick['p']:.0%}",
-            end="",
-        )
-        if pick.get("p_2050") is not None:
-            print(f"   2050 {pick['p_2050']:.0%}", end="")
-        print(f"   model AUC {pick['auc']:.2f}")
-        print(f"   {pick['reason']}")
-        if pick.get("future_note"):
-            print(f"   2050: {pick['future_note']}")
-        fi = pick.get("feature_importance") or []
-        if fi:
-            bits = [f"{row['label']} {row['share']:.0%}" for row in fi[:5]]
-            print("   Model uses: " + ", ".join(bits))
-        print(f"   {pick['native']}")
-        if pick["care"]:
-            print(f"   Care: {pick['care']}")
-        if pick["warning"]:
-            print(f"   Warning: {pick['warning']}")
+    avoid = result.get("avoid") or []
+    if avoid:
+        print("Do not plant (cell looks like their records; listed invasive/naturalised):")
+        for row in avoid:
+            warn = f" — {row['warning']}" if row.get("warning") else ""
+            print(
+                f"   {row['common_name']} ({row['species']})  p={row['p']:.0%}{warn}"
+            )
         print()
 
 
@@ -624,7 +771,6 @@ def main(argv=None):
         path = write_html(result, args.html, address=address)
         print(f"Wrote {path}")
     if args.json:
-        from recommend_html import _safe
         print(json.dumps(_safe(result), indent=2))
         return
     print_report(result, address=address)

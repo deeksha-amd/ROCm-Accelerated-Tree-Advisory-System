@@ -28,10 +28,11 @@ root (manifests committed; GeoTIFFs gitignored).
 | `data/soil_data/soilgrids_5km/` | Raw reference copies. **Do not train on these** | SoilGrids 2.0 | 2020 |
 | `data/topography/` | Elevation on the shared grid. Nothing else | GEDTM30 v1.2 | 2006-2015 data |
 | `data/satellite/` | Land-cover **filters** for `poc/recommend.py` (water, built-up, crop, snow, tree, exclusion). Vegetation is **not** an XGBoost input. Built by `data/scripts/satellite_rasters.py` | ESA WorldCover 10 m (2021 v200; 2020 fallback) | 2021 |
+| `data/country_data/USA/satellite_30s/` | Same WorldCover classes on the **USA 1 km** grid for `recommend_usa_30s.py`. Do not use `data/satellite/` on a 1 km pin. | ESA WorldCover 10 m | 2021 |
 | `data/country_data/USA/` | CONUS 1 km climate, soil, terrain (and USA 2050 BIO) | WorldClim / SoilGrids / GEDTM30 | mixed |
 | `data/species_occurrences/US/` | Cleaned + thinned US GBIF for the 1 km trainer | GBIF | mixed |
 | `data/models/` | Global 10-arc-minute XGBoost JSON | this repo | — |
-| `data/models_usa_30s/` | CONUS 1 km XGBoost JSON | this repo | — |
+| `data/models_usa_30s/` | CONUS 1 km XGBoost JSON (**gitignored**; `metrics.csv` + `feature_names.txt` are tracked) | this repo | — |
 | `data/validation/` | Evidence for why these sources were picked. **Not a model input** | various | — |
 | `country_data/{FRA,ESP,USA}/` | 1 km country stacks for the deep-learning pipeline (manifests in git) | WorldClim / SoilGrids / GEDTM30 | mixed |
 | `deep_learning_sdm/` | Deep-learning SDM train + advisory (separate from XGBoost) | this repo | — |

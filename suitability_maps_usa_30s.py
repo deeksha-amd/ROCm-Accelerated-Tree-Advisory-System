@@ -1,6 +1,7 @@
-"""USA 1 km climate suitability maps: today vs 2050 (BIO delta only).
+"""USA 1 km record-likeness maps: today vs 2050 (BIO delta only).
 
 Scores a bbox of the CONUS 30-arcsec grid with a saved data/models_usa_30s booster.
+p is target-group record-likeness, not planting suitability.
 Does not load the full 5 GB stack — only the window covering --bbox.
 Does not retrain. Satellite is not a feature.
 
@@ -147,7 +148,7 @@ def write_map_html(species, stem, bbox, out_dir, have_2050):
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<title>{species} — USA 1 km suitability</title>
+<title>{species} — USA 1 km record-likeness</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
   body {{ margin: 0; font-family: Georgia, serif; background: #f4f1ea; color: #12202b; }}
@@ -164,11 +165,12 @@ def write_map_html(species, stem, bbox, out_dir, have_2050):
 </head>
 <body>
 <header>
-  <h1>{species}: USA 1 km climate suitability</h1>
-  <p class="sub">Saved XGBoost niche on the CONUS 30-arc-second grid (~1 km).
-  Soil and terrain held fixed. 2050 swaps only the 19 BIO layers (CMIP6
-  MPI-ESM1-2-HR ssp245 2041–2060, delta onto the 2015–2024 1 km climate —
-  not a resized 18 km cube). Not trained on tree cover.</p>
+  <h1>{species}: USA 1 km record-likeness</h1>
+  <p class="sub">p is how much each 1 km cell looks like GBIF records of this
+  species versus other listed trees (target-group background) — not a planting
+  suitability map. Soil and terrain held fixed. 2050 swaps only the 19 BIO
+  layers (CMIP6 MPI-ESM1-2-HR ssp245 2041–2060, delta onto the 2015–2024 1 km
+  climate — not a resized 18 km cube). Not trained on tree cover.</p>
 </header>
 <div class="panels">
   <figure><img src="{now_uri}" alt="today"/><figcaption>Today (2015–2024 1 km BIO). Cream → green = higher p.</figcaption></figure>
@@ -199,7 +201,7 @@ L.control.layers({layers_js}, {{}}, {{collapsed: false}}).addTo(map);
 
 
 def parse_args(argv=None):
-    p = argparse.ArgumentParser(description="USA 1 km today vs 2050 suitability maps.")
+    p = argparse.ArgumentParser(description="USA 1 km today vs 2050 record-likeness maps.")
     p.add_argument("--species", default="Quercus virginiana")
     p.add_argument("--bbox", default=DEFAULT_BBOX)
     p.add_argument("--out", default=OUT_DIR)

@@ -25,9 +25,11 @@ species,common_name,use,region,notes
 #     the lower 48, so a tree that only grows outside it cannot be recommended.
 #   - species known in the US only from botanic gardens and arboreta.
 #
-# Naturalised and invasive trees (Ailanthus, Melia, Triadica, Elaeagnus) are
-# INCLUDED on purpose: the model has to know where they grow to be able to
-# recommend against them, and they are a large part of the eastern US record.
+# Naturalised and invasive trees (Ailanthus, Melia, Triadica, Elaeagnus,
+# Pyrus calleryana, …) are INCLUDED in the training list on purpose: the
+# model has to know where they grow. recommend_usa_30s.py DROPS them from
+# the planting top-5 and lists them under "do not plant" when the cell
+# looks like their records.
 #
 # ── oaks: the single most important US genus for this advisory ──
 Quercus alba,White oak,native_woodland,north_america,

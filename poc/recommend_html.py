@@ -127,7 +127,7 @@ TEMPLATE = r"""<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <h1>Tree suggestions</h1>
+  <h1 id="headline">Tree suggestions</h1>
   <p id="place"></p>
 </header>
 <div class="layout">
@@ -149,6 +149,7 @@ const coords = (typeof DATA.lat === "number" && typeof DATA.lon === "number")
   : "";
 const place = [DATA.address, coords, DATA.goal && DATA.goal !== "any" ? "goal: " + DATA.goal : ""]
   .filter(Boolean).join("  ·  ");
+document.getElementById("headline").textContent = DATA.title || "Tree suggestions";
 document.getElementById("place").textContent = place || coords;
 
 const cell = DATA.cell || {};
@@ -202,17 +203,19 @@ let cards = "";
 if (blocked) {
   cards = `<p class="warn">No planting list — satellite says this pin is not plantable.</p>`;
 } else if (!DATA.picks || !DATA.picks.length) {
-  cards = `<p class="note">No species cleared the match + goal filters.</p>`;
+  cards = `<p class="note">No species cleared the record-likeness + goal filters.</p>`;
 } else {
   DATA.picks.forEach((p, i) => {
-    const risky = p.confidence === "Risky" ? " risky" : "";
+    const risky = (p.confidence === "Risky" || p.confidence === "Weak likeness") ? " risky" : "";
     const fut = (p.p_2050 === null || p.p_2050 === undefined)
       ? ""
       : `<div class="row"><span>2050</span><div class="track future"><i style="width:${clamp01(p.p_2050)*100}%"></i></div><span class="pct">${pct(p.p_2050)}</span></div>
          <div class="future-line">${p.future_note || ""}</div>`;
     const fi = (p.feature_importance || []).slice(0, 5);
+    const fiLead = DATA.importance_caption
+      || "Species-wide XGBoost gain (not this pin):";
     const fiHtml = fi.length
-      ? `<p class="fi">Model uses: ${fi.map(x => x.label + " " + Math.round((x.share||0)*100) + "%").join(" · ")}</p>`
+      ? `<p class="fi">${fiLead} ${fi.map(x => x.label + " " + Math.round((x.share||0)*100) + "%").join(" · ")}</p>`
       : "";
     cards += `<article class="card">
       <span class="badge${risky}">${p.confidence || ""}</span>
@@ -228,6 +231,16 @@ if (blocked) {
   });
 }
 
+const avoid = DATA.avoid || [];
+let avoidHtml = "";
+if (avoid.length) {
+  avoidHtml = `<p class="warn">Do not plant — this cell looks like records of invasive or naturalised trees:</p>`
+    + avoid.map(a => `<p class="warn">• ${a.common_name} <span class="latin">${a.species}</span> (p=${pct(a.p)})${a.warning ? " — " + a.warning : ""}</p>`).join("");
+}
+
+const disclaimer = DATA.disclaimer
+  || "p is how much this climate–soil cell looks like recorded sites of that species, not a planting permit.";
+
 document.getElementById("panel").innerHTML = `
   <div class="status ${status}">${status.replace("_", " ")} cell</div>
   <p>${DATA.site || ""}</p>
@@ -235,12 +248,13 @@ document.getElementById("panel").innerHTML = `
   ${mixHtml ? `<div class="mix">${mixHtml}</div><div class="legend">${legend}</div>` : ""}
   ${notes}
   ${cards}
+  ${avoidHtml}
   <footer>
-    Suitability <em>p</em> is P(this climate–soil cell looks like recorded habitat), not a planting permit.
+    ${disclaimer}
     ${futureMeta.available
       ? "2050 uses CMIP6 " + (futureMeta.ssp || "ssp245") + " " + (futureMeta.period || "2041–2060") + "; soil and elevation stay as they are. Same XGBoost models, new BIO values — not a second training run."
       : "2050 bars omitted (future climate GeoTIFF not on disk)."}
-    "Model uses" is global XGBoost gain for that species, not a local explanation of this pin.
+    Feature-gain lines are species-wide XGBoost gain, not a local explanation of this pin.
     Tree cover is a satellite filter, not an XGBoost feature.
   </footer>
 `;

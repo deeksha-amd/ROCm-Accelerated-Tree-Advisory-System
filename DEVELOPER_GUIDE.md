@@ -53,9 +53,12 @@ pseudo-absences (y=0)    →     final model on all rows         →     top 5 c
 
 **Run from the project root** (`hackathon_2026/`). `repo_paths.py` resolves `data/` from the repo root. GPU is required for training (`device="cuda"` / ROCm on MI300X); recommend runs on CPU.
 
+USA rasters and `data/models_usa_30s/*.json` are **gitignored**. A clone must copy them or train; see `README.md`.
+
 ```bash
 source venv/bin/activate
 python xgboost_training_usa_30s.py --full-list --skip-existing
+python data/scripts/satellite_rasters_usa_30s.py --smoke
 python recommend_usa_30s.py --lat 30.2672 --lon -97.7431 --goal shade --html maps/austin.html
 ```
 
@@ -177,6 +180,17 @@ python data/scripts/satellite_rasters.py --bbox -10,40,10,60 --workers 8
 Writes `data/satellite/*.tif` (gitignored). No XGBoost retrain. `poc/recommend.py` reads those files on the next run.
 
 `--smoke` / `--bbox` leave the rest of the globe as NaN so other cities are skipped, not marked as ocean. A full run treats unmapped cells as water.
+
+### USA 1 km filters (do not use the 18 km stack)
+
+`recommend_usa_30s.py` reads `data/country_data/USA/satellite_30s/*_30s.tif` on the same 7020×3060 cell as the map box. It never falls back to `data/satellite/`.
+
+```bash
+python data/scripts/satellite_rasters_usa_30s.py --smoke   # Austin + Portland
+python data/scripts/satellite_rasters_usa_30s.py           # CONUS
+```
+
+Same WorldCover source and class rules as the 18 km script; different destination grid. Vegetation is still **not** an XGBoost input (`DO_NOT_TRAIN_ON_THIS.md` in that folder; trainer refuses the `satellite` path token).
 
 ### Do apply **after** `predict_proba`
 
@@ -338,6 +352,7 @@ python xgboost_training_usa_30s.py --full-list --skip-existing
 
 # USA 1 km recommend
 python future_climate_usa_30s.py
+python data/scripts/satellite_rasters_usa_30s.py --smoke
 python recommend_usa_30s.py --lat 30.2672 --lon -97.7431 --goal shade --html maps/austin.html
 python suitability_maps_usa_30s.py --species "Quercus virginiana"
 
@@ -376,14 +391,17 @@ The 1 km CONUS trainer is a different contract:
 | Trainer | `xgboost_training_usa_30s.py` |
 | Recommend | `recommend_usa_30s.py` (CONUS 1 km; not `poc/recommend.py`) |
 | 2050 BIO | `future_climate_usa_30s.py` → `data/country_data/USA/climate_future_2050_30s/` |
-| Suitability maps | `suitability_maps_usa_30s.py` → `maps/` (default live oak, south-central US) |
-| Models | `data/models_usa_30s/*.json` |
+| Satellite filters | `data/scripts/satellite_rasters_usa_30s.py` → `data/country_data/USA/satellite_30s/` |
+| Record-likeness maps | `suitability_maps_usa_30s.py` → `maps/` (default live oak, south-central US) |
+| Models | `data/models_usa_30s/*.json` (gitignored; `metrics.csv` is tracked) |
 
 Differences from the 10-arc-minute run that matter:
 
 - **BIO order is numeric** (`bio_1` … `bio_19`), not filename sort.
 - **61 predictors**: 19 BIO + 9 climate extras + 22 soil + 11 terrain. No satellite, no `source_flag`, no WorldClim elevation duplicate, no raw aspect degrees.
-- **Background is target-group** (other list-tree cells), not random land.
+- **Background is target-group** (other list-tree cells), not random land. Recommend copy says **record-likeness**, not planting suitability.
+- Invasive / naturalised checklist trees are **trained**, then **dropped from the top-5**.
 - **Gate is 150 unique 1 km cells** and ≥ 3 mixed spatial folds.
 - **2050 BIO** is `python future_climate_usa_30s.py` (10-arcmin ssp245 anomaly onto the 1 km training climate). Soil/terrain stay put. Do not upsample the global 10m cube.
+- **Satellite filters** must be the 1 km `satellite_30s/` stack. A git clone has neither rasters nor JSON boosters.
 - Needs ~6 GB RAM to hold the raster stack during training. `poc/recommend.py` still reads the **10-arc-minute** models; USA pins use `recommend_usa_30s.py`.

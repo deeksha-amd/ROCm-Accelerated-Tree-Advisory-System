@@ -225,31 +225,44 @@ def _as_fraction(val):
     return float(val)
 
 
-def sample_satellite(lat, lon):
+def sample_satellite(
+    lat,
+    lon,
+    satellite_dir=None,
+    files=None,
+    missing_hint=None,
+    grain_note=None,
+):
     """Optional site filter. Missing folder → no-op (POC still runs).
 
-    Never feeds pixels into XGBoost. Reads data/satellite/*.tif on the shared
-    10-arc-minute grid (skip data/satellite/raw/).
+    Never feeds pixels into XGBoost. Default reads data/satellite/*.tif on the
+    shared 10-arc-minute grid. Pass satellite_dir/files for another grid
+    (USA 1 km lives in data/country_data/USA/satellite_30s/).
     """
+    satellite_dir = satellite_dir or SATELLITE_DIR
+    files = files or SATELLITE_FILES
     info = {"blocked": False, "notes": [], "values": {}}
-    if not os.path.isdir(SATELLITE_DIR):
+    if not os.path.isdir(satellite_dir):
         info["notes"].append(
-            "No data/satellite/ folder yet — run python data/scripts/satellite_rasters.py, "
-            "then re-run. Skipping water/city/exclusion checks."
+            missing_hint
+            or (
+                "No data/satellite/ folder yet — run python data/scripts/satellite_rasters.py, "
+                "then re-run. Skipping water/city/exclusion checks."
+            )
         )
         return info
 
     tifs = []
-    for root, _, files in os.walk(SATELLITE_DIR):
+    for root, _, names in os.walk(satellite_dir):
         if os.path.sep + "raw" + os.path.sep in root + os.path.sep:
             continue
-        for name in files:
+        for name in names:
             if name.endswith(".tif"):
                 tifs.append(os.path.join(root, name))
 
     def find(key, extra_parts=()):
-        exact = os.path.join(SATELLITE_DIR, SATELLITE_FILES.get(key, ""))
-        if SATELLITE_FILES.get(key) and os.path.isfile(exact):
+        exact = os.path.join(satellite_dir, files.get(key, ""))
+        if files.get(key) and os.path.isfile(exact):
             return exact
         parts = (key,) + tuple(extra_parts)
         parts = tuple(p.lower() for p in parts)
@@ -273,7 +286,11 @@ def sample_satellite(lat, lon):
 
     if not tifs:
         info["notes"].append(
-            "data/satellite/ exists but has no GeoTIFFs — run python data/scripts/satellite_rasters.py."
+            missing_hint
+            or (
+                "data/satellite/ exists but has no GeoTIFFs — "
+                "run python data/scripts/satellite_rasters.py."
+            )
         )
         return info
 
@@ -311,6 +328,13 @@ def sample_satellite(lat, lon):
             info["notes"].append(
                 "Satellite greenness is high here — the cell is already vegetated."
             )
+    if tifs and not info["values"]:
+        info["notes"].append(
+            "Satellite rasters exist but this cell is unmapped "
+            "(partial/smoke run, or nodata)."
+        )
+    elif grain_note and info["values"]:
+        info["notes"].insert(0, grain_note)
     return info
 
 
