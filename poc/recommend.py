@@ -472,12 +472,12 @@ def native_label(traits, region):
     return "Native-range check skipped (no country on this pin)."
 
 
-def load_booster(path):
+def load_booster(path, device="cpu"):
     model = xgb.XGBClassifier()
     model.load_model(path)
-    # GPU-trained models still predict on CPU for this POC.
+    # Pin scoring is one 61-vector — keep CPU. Grid maps pass device=cuda.
     try:
-        model.set_params(device="cpu")
+        model.set_params(device=device)
     except Exception:
         pass
     return model

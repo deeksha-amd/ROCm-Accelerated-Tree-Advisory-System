@@ -144,17 +144,31 @@ def load_future_bands(shape):
     return bands
 
 
-def score_grid(model, X):
+def score_grid(model, X, device="cpu", batch_size=200_000):
+    """Score rows in batches.
+
+    cuda uses Booster.inplace_predict (avoids sklearn's DMatrix fallback).
+    cpu uses predict_proba. Pin pages should stay on cpu — a 40-tree model
+    on 16 threads beats GPU predict for this size.
+    """
+    X = np.ascontiguousarray(X, dtype=np.float32)
     try:
-        model.set_params(device="cpu")
+        model.set_params(device=device)
     except Exception:
         pass
-    # Chunk to keep host RAM predictable on 800k+ rows.
     out = np.empty(len(X), dtype=np.float32)
-    step = 200_000
+    step = max(int(batch_size), 1)
+    booster = None
+    if str(device).startswith("cuda"):
+        booster = model.get_booster()
+        booster.set_param({"device": device})
     for i in range(0, len(X), step):
         sl = slice(i, i + step)
-        out[sl] = model.predict_proba(X[sl])[:, 1]
+        if booster is not None:
+            pred = booster.inplace_predict(X[sl])
+            out[sl] = np.asarray(pred, dtype=np.float32).reshape(-1)
+        else:
+            out[sl] = model.predict_proba(X[sl])[:, 1]
     return out
 
 
