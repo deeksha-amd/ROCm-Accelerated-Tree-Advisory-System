@@ -20,6 +20,8 @@ It does **not** answer “which of 171 species lives here?” It answers, indepe
 
 A location is never a feature. Latitude/longitude are only used to **look up** a 42-number vector on a shared 10-arc-minute grid (~**18.5 km** cells, 2160 × 1080 globally). Two yards in the same cell get the same score.
 
+USA 1 km is the same idea with a **61-vector** and `data/models_usa_30s/` — section 10.
+
 ```
 GBIF points + rasters          XGBoost (one model / species)         App
 ─────────────────────          ────────────────────────────          ───
@@ -51,7 +53,7 @@ pseudo-absences (y=0)    →     final model on all rows         →     top 5 c
 | `data/models_usa_30s/` | USA 1 km `*.json` boosters |
 | `DATA_OVERVIEW.md` | Why each dataset, what not to train on |
 
-**Run from the project root** (`hackathon_2026/`). `repo_paths.py` resolves `data/` from the repo root. GPU is required for training (`device="cuda"` / ROCm on MI300X); recommend runs on CPU.
+**Run from the project root** (`hackathon_2026/`). `repo_paths.py` resolves `data/` from the repo root. Training defaults to `--device cuda` (ROCm on MI300X); `--device cpu --n-jobs 8` is the workstation clock. A pin is one 61-vector — `recommend_usa_30s.py` loads boosters with `device="cpu"`. Maps default to CPU; `--device cuda` batch-scores a bbox.
 
 USA rasters and `data/models_usa_30s/*.json` are **gitignored**. A clone must copy them or train; see `README.md`.
 
@@ -347,14 +349,21 @@ GBIF + rasters ──────► training only (not the live UI)
 Same list, with more context, in `README.md`.
 
 ```bash
-# USA 1 km train (GPU node)
+# USA 1 km train — demo fleet (1:1 absences → data/models_usa_30s/)
 python xgboost_training_usa_30s.py --full-list --skip-existing
 
-# USA 1 km recommend
+# USA 1 km speed-run (different --model-dir; do not overwrite the demo JSON)
+python xgboost_training_usa_30s.py --full-list --shared-universe --device cuda \
+  --model-dir data/models_usa_30s_shared
+python xgboost_training_usa_30s.py --full-list --shared-universe --device cpu --n-jobs 8 \
+  --model-dir data/models_usa_30s_shared_cpu
+
+# USA 1 km recommend (CPU pin)
 python future_climate_usa_30s.py
 python data/scripts/satellite_rasters_usa_30s.py --smoke
 python recommend_usa_30s.py --lat 30.2672 --lon -97.7431 --goal shade --html maps/austin.html
 python suitability_maps_usa_30s.py --species "Quercus virginiana"
+# python suitability_maps_usa_30s.py --species "Quercus virginiana" --device cuda --batch-rows 1000000
 
 # grow the list after the seed run (keeps models already on disk):
 python clean_species_usa_30s.py --species-list data/usa_tree_species_list.csv
@@ -392,7 +401,7 @@ The 1 km CONUS trainer is a different contract:
 | Recommend | `recommend_usa_30s.py` (CONUS 1 km; not `poc/recommend.py`) |
 | 2050 BIO | `future_climate_usa_30s.py` → `data/country_data/USA/climate_future_2050_30s/` |
 | Satellite filters | `data/scripts/satellite_rasters_usa_30s.py` → `data/country_data/USA/satellite_30s/` |
-| Record-likeness maps | `suitability_maps_usa_30s.py` → `maps/` (default live oak, south-central US) |
+| Record-likeness maps | `suitability_maps_usa_30s.py` → `maps/` (default live oak, south-central US bbox) |
 | Models | `data/models_usa_30s/*.json` (gitignored; `metrics.csv` is tracked) |
 
 Differences from the 10-arc-minute run that matter:
@@ -401,7 +410,25 @@ Differences from the 10-arc-minute run that matter:
 - **61 predictors**: 19 BIO + 9 climate extras + 22 soil + 11 terrain. No satellite, no `source_flag`, no WorldClim elevation duplicate, no raw aspect degrees.
 - **Background is target-group** (other list-tree cells), not random land. Recommend copy says **record-likeness**, not planting suitability.
 - Invasive / naturalised checklist trees are **trained**, then **dropped from the top-5**.
-- **Gate is 150 unique 1 km cells** and ≥ 3 mixed spatial folds.
+- **Gate is 150 unique 1 km cells** and ≥ 3 mixed spatial folds (KMeans **20** blocks, `StratifiedGroupKFold` **5**; AUC is the mean of usable fold AUCs, then a final booster on all rows).
 - **2050 BIO** is `python future_climate_usa_30s.py` (10-arcmin ssp245 anomaly onto the 1 km training climate). Soil/terrain stay put. Do not upsample the global 10m cube.
 - **Satellite filters** must be the 1 km `satellite_30s/` stack. A git clone has neither rasters nor JSON boosters.
 - Needs ~6 GB RAM to hold the raster stack during training. `poc/recommend.py` still reads the **10-arc-minute** models; USA pins use `recommend_usa_30s.py`.
+
+### Two training protocols
+
+**1:1 (demo / Austin).** `n_absences = min(len(presence), 25000)` other listed-tree cells. Typical X is a few thousand rows. Default `--device cuda`. Shipped `data/models_usa_30s/`: **255 saved**, mean AUC **0.888**. `--skip-existing` keeps a booster only when the JSON exists **and** `metrics.csv` says `status=saved`.
+
+**`--shared-universe` (GPU clock).** Unique 1 km tree cells → drop NaN rows → one X (**245,276** rows). `y = isin(cell, this species)`, `scale_pos_weight = n_neg / n_pos`. Same spatial-block CV. Clocked MI300X vs 8 CPU threads: fit **648 s vs 2428 s (3.7×)**; mean AUC **0.877** GPU / **0.876** CPU (248 saved). Seven range-restricted species that the 1:1 path saved can fail the fold gate here. Write to a **different `--model-dir`**. Do not replace the Austin 1:1 JSON with this speed-run.
+
+`--n-jobs` (default 0 = all visible CPUs) sets XGBoost / OpenMP threads. Use **8** for the workstation-vs-MI300X comparison. The trainer prints Wall and peak RSS.
+
+### Pin `p` and maps
+
+`recommend_usa_30s.py` samples the 61 layers at the pin, loads boosters with `load_booster(path, device="cpu")`, and sets
+
+`p = float(model.predict_proba(x)[0, 1])`
+
+That is the sigmoid of the tree-sum log-odds: record-likeness vs other listed trees, not survival. Drop `p < 0.30`. Rank remaining by `p * auc`. Default `--min-auc` is **0.70**. 2050 = swap 19 BIO, same JSON, second `predict_proba`.
+
+`suitability_maps_usa_30s.py` scores a **bbox** (default south-central US), not a flatten of 7020×3060×61. `--device` defaults to `cpu`. `--device cuda --batch-rows 1000000` uses `Booster.inplace_predict` on host NumPy chunks. For one shallow booster, CPU is often faster; GPU pays off if you leave X on the device and score many species.
