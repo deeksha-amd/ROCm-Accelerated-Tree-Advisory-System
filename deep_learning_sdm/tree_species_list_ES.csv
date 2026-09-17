@@ -1,0 +1,209 @@
+species,common_name,use,region,notes
+# Curated plantable trees for mainland Spain and the Balearic Islands.
+# Same five columns and same contract as tree_species_list.csv: `species` is
+# the only column the pipeline reads, the rest are for humans.
+#
+# INCLUSION RULE. A name is on this list when it is a TREE (single-stemmed
+# woody plant reaching roughly 6 m or more at maturity) AND at least one of:
+#   1. it is a dominant or characteristic native tree of one of Spain's four
+#      biogeographic zones -- Mediterranean evergreen woodland and dehesa,
+#      the Eurosiberian Atlantic north, the sub-Mediterranean and montane
+#      pine and fir belts, and the riparian corridors that cross all of them;
+#   2. it is a standard Spanish street, plaza, paseo or park tree, native or
+#      not, including the Australian and American species that make up much of
+#      the urban canopy of Madrid, Barcelona, Valencia and Seville;
+#   3. it is a commercially grown orchard, nut or plantation tree of mainland
+#      Spain -- which for Spain is a large category, since olive, almond,
+#      citrus, carob and fig are landscape-scale land uses, not garden plants.
+#
+# DELIBERATE EXCLUSIONS:
+#   - the maquis and garrigue SHRUBS that dominate the Spanish GBIF record --
+#     Cistus, Rosmarinus, Erica, Genista, Thymus, Ulex. They are the most
+#     recorded woody plants in Spain and none of them is a plantable tree.
+#   - Canary Island endemics -- Pinus canariensis, Phoenix canariensis as a
+#     wild taxon, Dracaena draco, the laurisilva laurels. The modelling extent
+#     is mainland Spain plus the Balearics, and a subtropical Atlantic island
+#     tree cannot be recommended from a peninsular climate surface. Phoenix
+#     canariensis is kept, but as a PLANTED street tree of the mainland coast,
+#     which is what it is there.
+#   - North African species known in Spain only from Ceuta and Melilla.
+#
+# ── evergreen oaks and the dehesa ──
+Quercus ilex,Holm oak,native_woodland,europe,
+Quercus rotundifolia,Encina,native_woodland,europe,dehesa dominant
+Quercus suber,Cork oak,timber,europe,cork
+Quercus coccifera,Kermes oak,native_woodland,europe,
+# ── deciduous and marcescent oaks ──
+Quercus faginea,Portuguese oak,native_woodland,europe,
+Quercus pyrenaica,Pyrenean oak,native_woodland,europe,
+Quercus robur,Pedunculate oak,native_woodland,europe,
+Quercus petraea,Sessile oak,native_woodland,europe,
+Quercus pubescens,Downy oak,native_woodland,europe,
+Quercus canariensis,Algerian oak,native_woodland,europe,despite the name a mainland Iberian tree
+Quercus rubra,Northern red oak,street_park,north_america,planted in Spain
+# ── pines: the backbone of Spanish forestry ──
+Pinus halepensis,Aleppo pine,timber,europe,
+Pinus pinea,Stone pine,fruit_nut,europe,pine nuts
+Pinus pinaster,Maritime pine,timber,europe,resin and timber
+Pinus nigra,Black pine,timber,europe,
+Pinus sylvestris,Scots pine,timber,europe,
+Pinus uncinata,Mountain pine,native_woodland,europe,Pyrenean treeline
+Pinus radiata,Monterey pine,timber,north_america,plantation in the Basque Country
+Pinus mugo,Dwarf mountain pine,native_woodland,europe,
+# ── other conifers ──
+Abies alba,Silver fir,timber,europe,
+Abies pinsapo,Spanish fir,native_woodland,europe,Andalusian endemic
+Juniperus thurifera,Spanish juniper,native_woodland,europe,
+Juniperus oxycedrus,Prickly juniper,native_woodland,europe,
+Juniperus phoenicea,Phoenicean juniper,native_woodland,europe,
+Juniperus communis,Common juniper,native_woodland,europe,
+Cupressus sempervirens,Italian cypress,street_park,europe,
+Cupressus arizonica,Arizona cypress,street_park,north_america,windbreak in Spain
+Cupressus macrocarpa,Monterey cypress,street_park,north_america,
+Taxus baccata,Yew,native_woodland,europe,
+Cedrus atlantica,Atlas cedar,street_park,africa,widely planted in Spain
+Cedrus deodara,Deodar cedar,street_park,asia,
+Cedrus libani,Cedar of Lebanon,ornamental,asia,
+Picea abies,Norway spruce,ornamental,europe,
+Larix decidua,European larch,timber,europe,
+Pseudotsuga menziesii,Douglas fir,timber,north_america,plantation in northern Spain
+Sequoia sempervirens,Coast redwood,ornamental,north_america,
+Araucaria heterophylla,Norfolk Island pine,street_park,oceania,coastal Spanish promenades
+Ginkgo biloba,Ginkgo,street_park,asia,
+# ── Atlantic and Eurosiberian broadleaves ──
+Fagus sylvatica,European beech,timber,europe,
+Castanea sativa,Sweet chestnut,fruit_nut,europe,
+Betula pubescens,Downy birch,native_woodland,europe,
+Betula pendula,Silver birch,street_park,europe,
+Corylus avellana,Hazel,fruit_nut,europe,
+Carpinus betulus,Hornbeam,street_park,europe,
+Fraxinus excelsior,Common ash,timber,europe,
+Fraxinus angustifolia,Narrow-leaved ash,native_woodland,europe,
+Fraxinus ornus,Manna ash,street_park,europe,
+Acer pseudoplatanus,Sycamore maple,street_park,europe,
+Acer campestre,Field maple,street_park,europe,
+Acer monspessulanum,Montpellier maple,native_woodland,europe,
+Acer opalus,Italian maple,native_woodland,europe,
+Acer platanoides,Norway maple,street_park,europe,
+Acer negundo,Box elder,street_park,north_america,naturalised in Spain
+Tilia platyphyllos,Large-leaved lime,street_park,europe,
+Tilia cordata,Small-leaved lime,street_park,europe,
+Ulmus minor,Field elm,street_park,europe,
+Ulmus glabra,Wych elm,native_woodland,europe,
+Ulmus pumila,Siberian elm,street_park,asia,planted after Dutch elm disease
+Celtis australis,European nettle tree,street_park,europe,classic Spanish plaza tree
+Sorbus aria,Whitebeam,native_woodland,europe,
+Sorbus aucuparia,Rowan,street_park,europe,
+Sorbus torminalis,Wild service tree,native_woodland,europe,
+Sorbus domestica,Service tree,fruit_nut,europe,
+Ilex aquifolium,Holly,native_woodland,europe,
+Buxus sempervirens,Box,ornamental,europe,
+Laurus nobilis,Bay laurel,street_park,europe,
+Arbutus unedo,Strawberry tree,native_woodland,europe,
+Phillyrea latifolia,Green olive tree,native_woodland,europe,
+Myrtus communis,Myrtle,ornamental,europe,
+Pistacia lentiscus,Mastic tree,native_woodland,europe,
+Pistacia terebinthus,Terebinth,native_woodland,europe,
+Rhamnus alaternus,Mediterranean buckthorn,native_woodland,europe,
+Viburnum tinus,Laurustinus,ornamental,europe,
+Nerium oleander,Oleander,street_park,europe,
+Chamaerops humilis,Dwarf fan palm,ornamental,europe,only native European palm
+# ── riparian ──
+Populus alba,White poplar,street_park,europe,
+Populus nigra,Black poplar,timber,europe,
+Populus tremula,Aspen,native_woodland,europe,
+Populus x canadensis,Hybrid poplar,timber,europe,plantation
+Salix alba,White willow,native_woodland,europe,
+Salix fragilis,Crack willow,native_woodland,europe,
+Salix atrocinerea,Grey willow,native_woodland,europe,
+Salix babylonica,Weeping willow,street_park,asia,
+Alnus glutinosa,Black alder,native_woodland,europe,
+Fraxinus pennsylvanica,Green ash,street_park,north_america,planted in Spain
+Platanus x acerifolia,London plane,street_park,europe,the Spanish avenue tree
+Platanus orientalis,Oriental plane,street_park,asia,
+Tamarix gallica,French tamarisk,native_woodland,europe,
+Tamarix africana,African tamarisk,native_woodland,africa,
+Nyssa sylvatica,Black tupelo,ornamental,north_america,
+Liquidambar styraciflua,Sweetgum,street_park,north_america,widely planted in Spain
+Liriodendron tulipifera,Tulip tree,street_park,north_america,
+# ── the Spanish orchard, which is a landscape not a garden ──
+Olea europaea,Olive,fruit_nut,europe,the largest tree crop in Spain
+Ceratonia siliqua,Carob,fruit_nut,europe,
+Ficus carica,Fig,fruit_nut,asia,
+Prunus amygdalus,Almond,fruit_nut,asia,GBIF moved Prunus dulcis here
+Prunus avium,Sweet cherry,fruit_nut,europe,
+Prunus cerasus,Sour cherry,fruit_nut,europe,
+Prunus domestica,European plum,fruit_nut,europe,
+Prunus persica,Peach,fruit_nut,asia,
+Prunus armeniaca,Apricot,fruit_nut,asia,
+Prunus spinosa,Blackthorn,native_woodland,europe,
+Prunus mahaleb,St Lucie cherry,native_woodland,europe,
+Prunus cerasifera,Cherry plum,street_park,asia,
+Prunus lusitanica,Portugal laurel,ornamental,europe,
+Malus domestica,Apple,fruit_nut,asia,
+Malus sylvestris,Crab apple,native_woodland,europe,
+Pyrus communis,Pear,fruit_nut,europe,
+Pyrus bourgaeana,Iberian pear,native_woodland,europe,
+Cydonia oblonga,Quince,fruit_nut,asia,
+Eriobotrya japonica,Loquat,fruit_nut,asia,widely grown on the Spanish coast
+Punica granatum,Pomegranate,fruit_nut,asia,
+Diospyros kaki,Persimmon,fruit_nut,asia,major Valencian crop
+Citrus x sinensis,Sweet orange,fruit_nut,asia,the Valencian crop
+Citrus x limon,Lemon,fruit_nut,asia,
+Citrus x aurantium,Bitter orange,street_park,asia,the Seville street tree
+Citrus reticulata,Mandarin,fruit_nut,asia,
+Juglans regia,Walnut,fruit_nut,asia,
+Castanea crenata,Japanese chestnut,fruit_nut,asia,rootstock and orchard
+Corylus maxima,Filbert,fruit_nut,europe,
+Morus alba,White mulberry,street_park,asia,
+Morus nigra,Black mulberry,fruit_nut,asia,
+Persea americana,Avocado,fruit_nut,south_america,Malaga and Granada crop
+Mangifera indica,Mango,fruit_nut,asia,subtropical Andalusian coast
+Annona cherimola,Cherimoya,fruit_nut,south_america,Granada coast
+Phoenix dactylifera,Date palm,fruit_nut,africa,Elche palm grove
+Musa acuminata,Banana,fruit_nut,asia,grown on the subtropical mainland coast
+Actinidia deliciosa,Kiwifruit,fruit_nut,asia,Galician crop
+# ── street and park trees, the planted urban canopy ──
+Jacaranda mimosifolia,Jacaranda,street_park,south_america,
+Melia azedarach,Chinaberry,street_park,asia,
+Robinia pseudoacacia,Black locust,street_park,north_america,naturalised in Spain
+Styphnolobium japonicum,Japanese pagoda tree,street_park,asia,
+Koelreuteria paniculata,Golden rain tree,street_park,asia,
+Gleditsia triacanthos,Honey locust,street_park,north_america,
+Ailanthus altissima,Tree of heaven,street_park,asia,invasive in Spain
+Catalpa bignonioides,Southern catalpa,street_park,north_america,
+Paulownia tomentosa,Princess tree,ornamental,asia,
+Lagerstroemia indica,Crape myrtle,street_park,asia,
+Magnolia grandiflora,Southern magnolia,street_park,north_america,
+Magnolia x soulangeana,Saucer magnolia,ornamental,asia,
+Aesculus hippocastanum,Horse chestnut,street_park,europe,
+Cercis siliquastrum,Judas tree,street_park,europe,
+Albizia julibrissin,Persian silk tree,street_park,asia,
+Brachychiton populneus,Kurrajong,street_park,oceania,
+Schinus molle,Peruvian pepper tree,street_park,south_america,
+Grevillea robusta,Silky oak,street_park,oceania,
+Erythrina crista-galli,Cockspur coral tree,ornamental,south_america,
+Tipuana tipu,Tipu tree,street_park,south_america,common in Seville and Valencia
+Parkinsonia aculeata,Jerusalem thorn,street_park,south_america,
+Acacia dealbata,Silver wattle,street_park,oceania,invasive in Galicia
+Acacia melanoxylon,Blackwood,timber,oceania,naturalised in Spain
+Acacia saligna,Golden wreath wattle,street_park,oceania,
+Eucalyptus globulus,Tasmanian blue gum,timber,oceania,the Galician plantation species
+Eucalyptus camaldulensis,River red gum,timber,oceania,Extremadura and Huelva plantation
+Washingtonia robusta,Mexican fan palm,street_park,north_america,
+Phoenix canariensis,Canary Island date palm,street_park,africa,planted throughout the mainland coast
+Ligustrum lucidum,Glossy privet,street_park,asia,
+Photinia serratifolia,Chinese photinia,ornamental,asia,
+Pittosporum tobira,Japanese cheesewood,ornamental,asia,
+Crataegus monogyna,Hawthorn,native_woodland,europe,
+Ficus macrophylla,Moreton Bay fig,street_park,oceania,the Cadiz and Seville giants
+Ficus elastica,Rubber fig,street_park,asia,
+Ficus benjamina,Weeping fig,street_park,asia,
+Bauhinia variegata,Orchid tree,street_park,asia,
+Callistemon citrinus,Crimson bottlebrush,ornamental,oceania,
+Cinnamomum camphora,Camphor tree,street_park,asia,
+Sterculia diversifolia,Bottle tree,street_park,oceania,
+Vitex agnus-castus,Chaste tree,ornamental,europe,
+Elaeagnus angustifolia,Russian olive,street_park,asia,
+Hibiscus syriacus,Rose of Sharon,ornamental,asia,
+Cotinus coggygria,Smoke tree,ornamental,europe,

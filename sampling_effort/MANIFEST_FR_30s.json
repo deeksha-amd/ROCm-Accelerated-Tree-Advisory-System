@@ -1,0 +1,41 @@
+{
+  "country": "FR",
+  "country_bounds": [
+    41.3,
+    51.2,
+    -5.2,
+    9.6
+  ],
+  "resolution": "30s",
+  "target_grid": {
+    "width": 1860,
+    "height": 1260,
+    "crs": "EPSG:4326",
+    "transform": [
+      0.008333333333333333,
+      0.0,
+      -5.5,
+      0.0,
+      -0.008333333333333333,
+      51.5
+    ],
+    "template": "country_data/FRA/country_grid.json"
+  },
+  "effort_raster": "sampling_effort/plant_effort_FR_30s.tif",
+  "smoothed_raster": null,
+  "smooth_km": 0.0,
+  "smooth_passes": 3,
+  "country_mask": "Natural Earth polygon",
+  "target_group": "Tracheophyta",
+  "taxon_key": 7707728,
+  "tile_zoom": 8,
+  "tile_pixels_read": 3230269,
+  "records_total": 92177353.0,
+  "cells_surveyed": 734793,
+  "verification_ratios": [],
+  "occurrence_filters": {
+    "hasCoordinate": "true",
+    "hasGeospatialIssue": "false",
+    "occurrenceStatus": "PRESENT"
+  }
+}

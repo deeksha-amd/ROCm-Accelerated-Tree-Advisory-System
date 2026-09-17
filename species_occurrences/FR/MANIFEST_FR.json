@@ -1,0 +1,32 @@
+{
+  "country": "FR",
+  "extent": "metropolitan France (Corsica included, overseas departments excluded)",
+  "country_bounds_lat_lon": null,
+  "generated": "2026-09-16T05:30:35",
+  "curated_names": 265,
+  "planned_modellable": 148,
+  "downloaded": 96,
+  "partial_species_excluded": 0,
+  "why_short_of_plan": "time-boxed: GBIF occurrence-search latency rose from ~25 s to ~280 s per species during the run, so the queue was stopped after the agreed hour. The queue is ordered by record count, so the species downloaded are the best-recorded ones.",
+  "status_counts": {
+    "below_record_floor": 117,
+    "downloaded": 96,
+    "not_downloaded": 52
+  },
+  "records_raw": 383876,
+  "records_clean": 243746,
+  "records_thinned": 78340,
+  "distinct_grid_cells": 2517,
+  "species_usable_at_30_thinned": 96,
+  "canonical_outputs": [
+    "species_occurrences/gbif_trees_thinned.csv",
+    "species_occurrences/gbif_trees_clean.csv",
+    "sampling_effort/background_points.csv"
+  ],
+  "sampling": {
+    "strata": "6 year bands x 2 latitude bands per species",
+    "budget_per_species": 4000,
+    "identical_for_every_species": true
+  },
+  "manifest_csv": "species_occurrences/FR/species_manifest_FR.csv"
+}
