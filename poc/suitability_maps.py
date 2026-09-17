@@ -7,8 +7,8 @@ mask ocean/ice in the PNG.
 
 Example
 -------
-python suitability_maps.py --species "Quercus robur"
-python suitability_maps.py --species "Quercus robur" --bbox -15,35,40,72
+python poc/suitability_maps.py --species "Quercus robur"
+python poc/suitability_maps.py --species "Quercus robur" --bbox -15,35,40,72
 """
 
 from __future__ import annotations
@@ -17,21 +17,27 @@ import argparse
 import base64
 import os
 import struct
+import sys
 import zlib
 
 import numpy as np
 import rasterio
 
-from recommend import (
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from poc.recommend import (
     FUTURE_CLIMATE_PATH,
     TEMPLATE_RASTER,
     bio_number,
     load_booster,
 )
-from xgboost_training import PredictorRasters, collect_predictor_paths
+from poc.xgboost_training import PredictorRasters, collect_predictor_paths
+from repo_paths import data, poc_maps
 
-OUT_DIR = "maps"
-EXCLUSION = os.path.join("satellite", "planting_exclusion_mask_10m.tif")
+OUT_DIR = poc_maps()
+EXCLUSION = data("satellite", "planting_exclusion_mask_10m.tif")
 
 
 def write_png(path, rgba):
@@ -118,7 +124,7 @@ def parse_bbox(text):
 def load_future_bands(shape):
     if not os.path.isfile(FUTURE_CLIMATE_PATH):
         raise SystemExit(
-            f"Missing {FUTURE_CLIMATE_PATH}\nRun: python future_climate_rasters.py"
+            f"Missing {FUTURE_CLIMATE_PATH}\nRun: python data/scripts/future_climate_rasters.py"
         )
     height, width = shape
     with rasterio.open(FUTURE_CLIMATE_PATH) as src:
@@ -234,7 +240,7 @@ def main(argv=None):
     args = parse_args(argv)
     species = args.species.strip()
     slug = species.replace(" ", "_")
-    model_path = os.path.join("models", f"{slug}.json")
+    model_path = os.path.join(data("models"), f"{slug}.json")
     if not os.path.isfile(model_path):
         raise SystemExit(f"No saved model at {model_path}")
 
@@ -309,7 +315,7 @@ def main(argv=None):
     print(f"Visible cells in frame: {n:,}")
     print(f"Mean p today {mean_now:.3f}  2050 {mean_fut:.3f}  delta {mean_fut-mean_now:+.3f}")
     print(f"Wrote {html}")
-    print("Open that file plus suggest.html from recommend.py --html for the pin demo.")
+    print("Open that file plus poc/maps/suggest.html from poc/recommend.py --html for the pin demo.")
 
 
 if __name__ == "__main__":

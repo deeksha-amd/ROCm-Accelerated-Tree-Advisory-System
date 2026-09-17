@@ -1,14 +1,18 @@
 # Developer guide: tree SDM training → recommendations
 
-This is the engineering map of the hackathon POC: how models are trained, what files they produce, how a non-technical recommendation is built, and how to plug in **satellite filters**, **2050 climate**, and **maps**.
+Start with **`README.md`** for the current folder layout and copy-paste run commands.
 
-If you only need data provenance (sources, licences, why GEDTM30), read `DATA_OVERVIEW.md`. This document is the **code path**.
+This file is the engineering map: how models are trained, what they write, how a pin becomes a shortlist, and how **satellite filters**, **2050 climate**, and **maps** plug in.
+
+**USA 1 km at the repo root is the main product.** The global 18 km demo lives in `poc/`. Section 3–8 below still describe that 18 km path in detail; section 10 is the USA 1 km contract.
+
+If you only need data provenance (sources, licences, why GEDTM30), read `DATA_OVERVIEW.md`.
 
 ---
 
 ## 1. What the system is
 
-Each saved file in `models/` is a **binary XGBoost classifier for one tree species**.
+Each saved file in `data/models/` is a **binary XGBoost classifier for one tree species**.
 
 It does **not** answer “which of 171 species lives here?” It answers, independently:
 
@@ -19,9 +23,9 @@ A location is never a feature. Latitude/longitude are only used to **look up** a
 ```
 GBIF points + rasters          XGBoost (one model / species)         App
 ─────────────────────          ────────────────────────────          ───
-occurrences (y=1)              spatial-block CV + early stop         recommend.py
+occurrences (y=1)              spatial-block CV + early stop         poc/recommend.py
 pseudo-absences (y=0)    →     final model on all rows         →     top 5 cards
-42 env numbers at each cell    models/*.json + metrics.csv           (JSON or text)
+42 env numbers at each cell    data/models/*.json + metrics.csv      (JSON or text)
 ```
 
 ---
@@ -30,48 +34,50 @@ pseudo-absences (y=0)    →     final model on all rows         →     top 5 c
 
 | Path | What a developer uses it for |
 |---|---|
-| `download_species.py` | Pull GBIF occurrences → `gbif_500_species.csv` |
-| `current_climate_rasters.py` | WorldClim BIO 1970–2000 → `climate_current/` |
-| `recent_climate_rasters.py` | Derived 2015–2024 BIO (better match to GBIF dates; optional retrain) |
-| `future_climate_rasters.py` | CMIP6 ssp245 2041–2060, **one 19-band GeoTIFF** |
-| `soil_rasters.py` / `topography_rasters.py` | Align soil + elevation to the same grid |
-| `satellite_rasters.py` | Stream ESA WorldCover → `satellite/*.tif` filters (**not** XGBoost features) |
-| `xgboost_training.py` | Train, gate, save models |
-| `catalog.py` | Genus/species cards (common name, goals, care) |
-| `data/species_traits.csv` | Editable overlay on those cards |
-| `recommend.py` | Location → top 5 plain-language picks (`--html` writes a Leaflet page) |
-| `recommend_html.py` | HTML template for the pin + 18 km cell + today/2050 bars |
-| `suitability_maps.py` | One-species today vs 2050 GeoTIFF/PNG/HTML (default: English oak) |
-| `models/` | `*.json` boosters, `metrics.csv`, `feature_names.txt` |
+| `README.md` | Run steps (start here) |
+| `xgboost_training_usa_30s.py` | Train USA 1 km models → `data/models_usa_30s/` |
+| `clean_species_usa_30s.py` | Clean + thin US GBIF onto the **1 km** CONUS grid |
+| `recommend_usa_30s.py` | Location → top 5 from **USA 1 km** models |
+| `future_climate_usa_30s.py` | Honest 1 km 2050 BIO (change-factor delta) |
+| `suitability_maps_usa_30s.py` | USA today vs 2050 maps → `maps/` |
+| `poc/` | Global **18 km** POC (train, recommend, catalog, oak/Seville maps) |
+| `data/` | Rasters, GBIF tables, species lists, and saved models |
+| `data/scripts/` | Download / align climate, soil, topography, satellite, GBIF |
+| `maps/` | USA pin/map HTML |
+| `data/usa_tree_species_seed.csv` | Short plantable US list (train this first) |
+| `data/usa_tree_species_list.csv` | Full US checklist (grow later) |
+| `data/species_traits.csv` | Editable overlay on species cards |
+| `data/models/` | Global 18 km `*.json` boosters |
+| `data/models_usa_30s/` | USA 1 km `*.json` boosters |
 | `DATA_OVERVIEW.md` | Why each dataset, what not to train on |
 
-**Run training and recommend from the project root** (`hackathon_2026/`). Paths are relative. GPU is required for training (`device="cuda"` / ROCm on MI300X); recommend runs on CPU.
+**Run from the project root** (`hackathon_2026/`). `repo_paths.py` resolves `data/` from the repo root. GPU is required for training (`device="cuda"` / ROCm on MI300X); recommend runs on CPU.
 
 ```bash
 source venv/bin/activate
-python xgboost_training.py          # hours-scale over ~300 taxa; writes models/
-python recommend.py --lat 51.51 --lon -0.13 --goal shade --html suggest.html
+python xgboost_training_usa_30s.py --full-list --skip-existing
+python recommend_usa_30s.py --lat 30.2672 --lon -97.7431 --goal shade --html maps/austin.html
 ```
 
 ---
 
-## 3. Training flow (`xgboost_training.py`)
+## 3. Training flow (`poc/xgboost_training.py`)
 
 ### 3.1 Load predictors once
 
 `collect_predictor_paths()` stacks, in this order (must stay stable):
 
-1. All `climate_current/*.tif` (19 BIO layers, **sorted by filename** — so `bio_10` comes before `bio_2`)
-2. `soil_data/aligned_10m/*.tif` except `source_flag_10m.tif` (22 layers)
-3. `topography/gedtm30/gedtm30_v1.2_elev_10m.tif`
+1. All `data/climate_current/*.tif` (19 BIO layers, **sorted by filename** — so `bio_10` comes before `bio_2`)
+2. `data/soil_data/aligned_10m/*.tif` except `source_flag_10m.tif` (22 layers)
+3. `data/topography/gedtm30/gedtm30_v1.2_elev_10m.tif`
 
-That list is written to `models/feature_names.txt`. Inference **must** sample layers in the same order.
+That list is written to `data/models/feature_names.txt`. Inference **must** sample layers in the same order.
 
-Do **not** train on `soil_data/soilgrids_5km/` (wrong grid) or vegetation satellite layers (circular: they measure existing trees).
+Do **not** train on `data/soil_data/soilgrids_5km/` (wrong grid) or vegetation satellite layers (circular: they measure existing trees).
 
 ### 3.2 Per species
 
-For each unique name in `gbif_500_species.csv`:
+For each unique name in `data/gbif_500_species.csv`:
 
 1. **Keep trees only.** Binomial whose genus is in `TREE_GENERA`. Drops moths, birds, bacteria that matched a GBIF genus search (`Carduelis pinus`, `Erigeron acer`, …).
 2. **Snap to unique grid cells.** Many GBIF rows share one 18 km pixel. Count unique cells, not records.
@@ -81,21 +87,21 @@ For each unique name in `gbif_500_species.csv`:
 6. **Spatial CV.** K-means on map coordinates → ~10 geographic blocks. `StratifiedGroupKFold` holds whole blocks out (5 folds). A fold is used only if train and test both contain 0s and 1s. ROC AUC needs both classes.
 7. **Fit.** `XGBClassifier`, histogram trees, GPU, early stopping on the held-out block. Regularization is lighter when `n` is small (`min_child_weight` 2 / 4 / 8).
 8. **Final model.** Retrain on all rows with `n_estimators = median(best_iteration)` from CV (floor 10). That is the file we save.
-9. **Save gate.** Write `models/{Genus_species}.json` only if AUC is finite **and** ≥ 3 mixed folds. Weak 2-fold AUCs (including lucky 0.96s) stay in `metrics.csv` as `skip_few_folds`.
+9. **Save gate.** Write `data/models/{Genus_species}.json` only if AUC is finite **and** ≥ 3 mixed folds. Weak 2-fold AUCs (including lucky 0.96s) stay in `metrics.csv` as `skip_few_folds`.
 
 ### 3.3 What “AUC” means here
 
 It is **spatial-block ROC AUC**, not random-split accuracy. Typical usable range is about **0.70–0.90**. Very high scores on well-sampled, widely planted species (`Pinus radiata`) can mean “easy climate envelope / plantations,” not a native woodland.
 
-`recommend.py` ignores saved models with AUC `< 0.70` (`catalog.MIN_AUC_DEFAULT`).
+`poc/recommend.py` ignores saved models with AUC `< 0.70` (`catalog.MIN_AUC_DEFAULT`).
 
 ### 3.4 Training outputs
 
 | File | Contents |
 |---|---|
-| `models/Quercus_robur.json` | XGBoost booster (sklearn `load_model`) |
-| `models/metrics.csv` | One row per GBIF name: `status`, `auc`, `n_unique_cells`, `n_folds_usable`, `model_path` |
-| `models/feature_names.txt` | 42 raster filenames in training order |
+| `data/models/Quercus_robur.json` | XGBoost booster (sklearn `load_model`) |
+| `data/models/metrics.csv` | One row per GBIF name: `status`, `auc`, `n_unique_cells`, `n_folds_usable`, `model_path` |
+| `data/models/feature_names.txt` | 42 raster filenames in training order |
 
 `metrics.csv` `status` values:
 
@@ -110,16 +116,16 @@ It is **spatial-block ROC AUC**, not random-split accuracy. Typical usable range
 
 ### 3.5 Adding more GBIF data later
 
-1. Replace or grow `gbif_500_species.csv` (same columns: `species`, `latitude`, `longitude`).
-2. Re-run `python xgboost_training.py`.
-3. New `models/*.json` appear; `recommend.py` loads whatever `metrics.csv` marks `saved`.
-4. Optionally add a row to `data/species_traits.csv` for common name / shade-food-beauty. Missing rows fall back to genus defaults in `catalog.py`.
+1. Replace or grow `data/gbif_500_species.csv` (same columns: `species`, `latitude`, `longitude`).
+2. Re-run `python poc/xgboost_training.py`.
+3. New `data/models/*.json` appear; `poc/recommend.py` loads whatever `metrics.csv` marks `saved`.
+4. Optionally add a row to `data/species_traits.csv` for common name / shade-food-beauty. Missing rows fall back to genus defaults in `poc/catalog.py`.
 
-You do **not** need to change `recommend.py` for new species.
+You do **not** need to change `poc/recommend.py` for new species.
 
 ---
 
-## 4. Recommendation flow (`recommend.py`)
+## 4. Recommendation flow (`poc/recommend.py`)
 
 ```
 address or lat/lon
@@ -145,7 +151,7 @@ Confidence (site fit × model quality):
 
 `--json` prints the same structure for a UI.
 
-`data/species_traits.csv` is **not** from GBIF. It is generated from `catalog.py` (`python recommend.py --write-traits-stub`): genus defaults plus a hand list of well-known common names. Obscure taxa get names like “Griffithii oak”. Edit the CSV; `recommend.py` prefers those cells over code defaults.
+`data/species_traits.csv` is **not** from GBIF. It is generated from `poc/catalog.py` (`python poc/recommend.py --write-traits-stub`): genus defaults plus a hand list of well-known common names. Obscure taxa get names like “Griffithii oak”. Edit the CSV; `poc/recommend.py` prefers those cells over code defaults.
 
 ---
 
@@ -160,21 +166,21 @@ Confidence (site fit × model quality):
 
 ### Download (aligned to the shared grid)
 
-Do **not** download the 10 m WorldCover mosaic (~120 GB). `satellite_rasters.py` streams COG overviews over HTTP and averages class fractions onto `climate_current/wc2.1_10m_bio_1.tif` (2160×1080), the same pattern as `soil_rasters.py`.
+Do **not** download the 10 m WorldCover mosaic (~120 GB). `satellite_rasters.py` streams COG overviews over HTTP and averages class fractions onto `data/climate_current/wc2.1_10m_bio_1.tif` (2160×1080), the same pattern as `soil_rasters.py`.
 
 ```bash
-python satellite_rasters.py --smoke     # 4 tiles: London, Portland, Lyon, Pacific
-python satellite_rasters.py             # global, ~10 min with 8 workers
-python satellite_rasters.py --bbox -10,40,10,60 --workers 8
+python data/scripts/satellite_rasters.py --smoke     # 4 tiles: London, Portland, Lyon, Pacific
+python data/scripts/satellite_rasters.py             # global, ~10 min with 8 workers
+python data/scripts/satellite_rasters.py --bbox -10,40,10,60 --workers 8
 ```
 
-Writes `satellite/*.tif` (gitignored). No XGBoost retrain. `recommend.py` reads those files on the next run.
+Writes `data/satellite/*.tif` (gitignored). No XGBoost retrain. `poc/recommend.py` reads those files on the next run.
 
 `--smoke` / `--bbox` leave the rest of the globe as NaN so other cities are skipped, not marked as ocean. A full run treats unmapped cells as water.
 
 ### Do apply **after** `predict_proba`
 
-`recommend.py` looks for `satellite/` (same 2160×1080 grid). If the folder is missing, it prints a skip note and continues. Exact names from `satellite_rasters.py` are preferred; substring match is the fallback:
+`poc/recommend.py` looks for `data/satellite/` (same 2160×1080 grid). If the folder is missing, it prints a skip note and continues. Exact names from `satellite_rasters.py` are preferred; substring match is the fallback:
 
 | File / filename contains | Behaviour today |
 |---|---|
@@ -202,15 +208,15 @@ Until you retrain, keep moisture as a **text hint** on the card (“soil stays w
 
 File on disk:
 
-`climate_future_2050/wc2.1_10m_bioc_MPI-ESM1-2-HR_ssp245_2041-2060.tif`
+`data/climate_future_2050/wc2.1_10m_bioc_MPI-ESM1-2-HR_ssp245_2041-2060.tif`
 
 One GeoTIFF, **19 bands** = BIO1…BIO19 (band 1 = BIO1). Soil and elevation stay as they are (static-soil assumption).
 
 ### Pairing rule (easy to get wrong)
 
-This 2050 file was bias-corrected against **WorldClim 1970–2000** (`climate_current/`). Compare future scores to models trained on `climate_current/`, which is what we have now.
+This 2050 file was bias-corrected against **WorldClim 1970–2000** (`data/climate_current/`). Compare future scores to models trained on `data/climate_current/`, which is what we have now.
 
-If you later retrain on `climate_recent/` (2015–2024), **do not** subtract that from this 2050 product — you would understate warming. You would need a future layer bias-corrected to the same recent baseline.
+If you later retrain on `data/climate_recent/` (2015–2024), **do not** subtract that from this 2050 product — you would understate warming. You would need a future layer bias-corrected to the same recent baseline.
 
 ### Feature-order rule (also easy to get wrong)
 
@@ -226,9 +232,9 @@ Sketch:
 import rasterio
 import numpy as np
 
-names = [ln.strip() for ln in open("models/feature_names.txt")]
+names = [ln.strip() for ln in open("data/models/feature_names.txt")]
 # x_now: 42 values in that order (recommend.sample_predictors)
-with rasterio.open("climate_future_2050/wc2.1_10m_bioc_MPI-ESM1-2-HR_ssp245_2041-2060.tif") as src:
+with rasterio.open("data/climate_future_2050/wc2.1_10m_bioc_MPI-ESM1-2-HR_ssp245_2041-2060.tif") as src:
     # src.read(k) is BIO k at 1-based band index
     bio = {k: src.read(k)[row, col] for k in range(1, 20)}
 
@@ -244,7 +250,7 @@ for name in names:
 
 Then `p_now = model.predict_proba(x_now)` and `p_2050 = model.predict_proba(x_future)`.
 
-`recommend.py` does this at the pin automatically when `climate_future_2050/wc2.1_10m_bioc_MPI-ESM1-2-HR_ssp245_2041-2060.tif` is present (`--html` shows paired bars). `suitability_maps.py` does it for every land cell of one species.
+`poc/recommend.py` does this at the pin automatically when `data/climate_future_2050/wc2.1_10m_bioc_MPI-ESM1-2-HR_ssp245_2041-2060.tif` is present (`--html` shows paired bars). `poc/suitability_maps.py` does it for every land cell of one species.
 
 ### Product ideas
 
@@ -265,10 +271,10 @@ The CLI is the POC. Everything below consumes `recommend.py --json` or the same 
 ### 7.1 Pin + cards (product UI)
 
 ```bash
-python recommend.py --lat 51.51 --lon -0.13 --goal shade --html suggest.html
+python poc/recommend.py --lat 51.51 --lon -0.13 --goal shade --html poc/maps/suggest.html
 ```
 
-`suggest.html` is a Leaflet page: map, the **18 km cell** as a rectangle (green plantable / amber city or farm / red blocked), satellite mix bar, top-5 cards with **today vs 2050** bars. Needs the network for Leaflet and Esri tiles (OSM/CARTO block or watermark `file://` pages).
+`poc/maps/suggest.html` is a Leaflet page: map, the **18 km cell** as a rectangle (green plantable / amber city or farm / red blocked), satellite mix bar, top-5 cards with **today vs 2050** bars. Needs the network for Leaflet and Esri tiles (OSM/CARTO block or watermark `file://` pages).
 
 Zoom is capped (`maxZoom` 8 on fit). The caption states the score is for the cell, not a backyard.
 
@@ -279,8 +285,8 @@ Those bars live on the HTML cards (`p` and `p_2050`). The CLI prints the same pa
 ### 7.3 Suitability map for one species (research / poster)
 
 ```bash
-python future_climate_rasters.py          # once, if the 19-band 2050 file is missing
-python suitability_maps.py --species "Quercus robur"
+python data/scripts/future_climate_rasters.py          # once, if the 19-band 2050 file is missing
+python poc/suitability_maps.py --species "Quercus robur"
 ```
 
 Writes `maps/Quercus_robur_{now,2050,delta}.png` plus GeoTIFFs and `maps/Quercus_robur.html` (Europe crop by default: `--bbox -15,35,40,72`). Ocean/ice masked with `planting_exclusion_mask_10m.tif`. Same models, BIO swap only.
@@ -324,23 +330,60 @@ GBIF + rasters ──────► training only (not the live UI)
 
 ## 9. Quick commands
 
+Same list, with more context, in `README.md`.
+
 ```bash
-# Train (GPU node)
-python xgboost_training.py
+# USA 1 km train (GPU node)
+python xgboost_training_usa_30s.py --full-list --skip-existing
 
-# Satellite site filters (CPU, HTTP). Not a training input.
-python satellite_rasters.py
+# USA 1 km recommend
+python future_climate_usa_30s.py
+python recommend_usa_30s.py --lat 30.2672 --lon -97.7431 --goal shade --html maps/austin.html
+python suitability_maps_usa_30s.py --species "Quercus virginiana"
 
-# Refresh editable species cards after a new training run
-python recommend.py --write-traits-stub
+# grow the list after the seed run (keeps models already on disk):
+python clean_species_usa_30s.py --species-list data/usa_tree_species_list.csv
+python xgboost_training_usa_30s.py --full-list --skip-existing
 
-# Human-readable POC + HTML pin page
-python recommend.py --lat 51.51 --lon -0.13 --goal shade --html suggest.html
-
-# English oak today vs 2050 (Europe crop)
-python future_climate_rasters.py
-python suitability_maps.py --species "Quercus robur"
-
-# For a frontend
-python recommend.py --lat 45.76 --lon 4.84 --goal shade --json
+# 18 km POC (does not touch data/models_usa_30s/)
+python poc/xgboost_training.py
+python data/scripts/satellite_rasters.py
+python poc/recommend.py --write-traits-stub
+python poc/recommend.py --lat 51.51 --lon -0.13 --goal shade --html poc/maps/suggest.html
+python data/scripts/future_climate_rasters.py
+python poc/suitability_maps.py --species "Quercus robur"
+python poc/recommend.py --lat 45.76 --lon 4.84 --goal shade --json
 ```
+
+---
+
+## 10. USA 1 km path (separate from the 10-arc-minute POC)
+
+`poc/xgboost_training.py` stays on the **global 10-arc-minute** grid (`data/models/`).
+Do not point it at `data/country_data/USA`.
+
+The 1 km CONUS trainer is a different contract:
+
+| Piece | Path |
+|---|---|
+| Scripts | repo root (`xgboost_training_usa_30s.py`, `recommend_usa_30s.py`, …) |
+| Rasters | `data/country_data/USA/{climate,soil,topography}_30s/` (7020×3060, ~1 km) |
+| Seed species | `data/usa_tree_species_seed.csv` (~32 well-known trees) |
+| Full checklist | `data/usa_tree_species_list.csv` (grow later) |
+| Raw GBIF | `data/species_occurrences/US/gbif_trees_US_raw.csv` |
+| Cleaner | `clean_species_usa_30s.py` |
+| Thinned table | `data/species_occurrences/US/gbif_trees_US_30s_thinned.csv` |
+| Trainer | `xgboost_training_usa_30s.py` |
+| Recommend | `recommend_usa_30s.py` (CONUS 1 km; not `poc/recommend.py`) |
+| 2050 BIO | `future_climate_usa_30s.py` → `data/country_data/USA/climate_future_2050_30s/` |
+| Suitability maps | `suitability_maps_usa_30s.py` → `maps/` (default live oak, south-central US) |
+| Models | `data/models_usa_30s/*.json` |
+
+Differences from the 10-arc-minute run that matter:
+
+- **BIO order is numeric** (`bio_1` … `bio_19`), not filename sort.
+- **61 predictors**: 19 BIO + 9 climate extras + 22 soil + 11 terrain. No satellite, no `source_flag`, no WorldClim elevation duplicate, no raw aspect degrees.
+- **Background is target-group** (other list-tree cells), not random land.
+- **Gate is 150 unique 1 km cells** and ≥ 3 mixed spatial folds.
+- **2050 BIO** is `python future_climate_usa_30s.py` (10-arcmin ssp245 anomaly onto the 1 km training climate). Soil/terrain stay put. Do not upsample the global 10m cube.
+- Needs ~6 GB RAM to hold the raster stack during training. `poc/recommend.py` still reads the **10-arc-minute** models; USA pins use `recommend_usa_30s.py`.

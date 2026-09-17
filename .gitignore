@@ -1,5 +1,6 @@
 venv/
 __pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 .Python
@@ -9,22 +10,55 @@ __pycache__/
 # 2.6 GB of monthly-weather archives cached by recent_climate_rasters.py;
 # re-downloadable, so not worth committing
 climate_monthly_src/
+data/climate_monthly_src/
 
 # 2.3 GB of source imagery cached by satellite_rasters.py; also re-downloadable
 satellite/raw/
+data/satellite/raw/
 
-# Derived raster blocks, ~3.2 GB total. Regenerate with the *_rasters.py scripts
-# rather than committing; GitHub rejects files over 100 MB.
+# Derived raster blocks. Regenerate with the *_rasters.py scripts rather than
+# committing; GitHub rejects files over 100 MB.
 soil_data/
 topography/
 satellite/
+country_data/
 climate_recent/
 climate_2000_2015/
 climate_future_2050/
+data/soil_data/
+data/topography/
+data/satellite/
+data/country_data/
+data/climate_recent/
+data/climate_2000_2015/
+data/climate_future_2050/
+data/climate_recent_sample/
+data/validation/
 maps/*.tif
+maps/**/*.tif
+poc/maps/*.tif
+poc/maps/**/*.tif
 suggest.html
+maps/suggest.html
+poc/maps/suggest.html
 validation/
 *.csv
-!gbif_500_species.csv
+!data/gbif_500_species.csv
 !data/species_traits.csv
+!data/usa_tree_species_seed.csv
+!data/usa_tree_species_list.csv
+!data/models/metrics.csv
+!data/models_usa_30s/metrics.csv
+!data/models_usa_30s/feature_names.txt
+!gbif_500_species.csv
 !models/metrics.csv
+!models_usa_30s/metrics.csv
+!models_usa_30s/feature_names.txt
+
+# USA 1 km occurrence tables (regenerate with clean_species_usa_30s.py)
+species_occurrences/
+data/species_occurrences/
+
+# USA 1 km boosters; keep metrics/feature names if present
+models_usa_30s/*.json
+data/models_usa_30s/*.json

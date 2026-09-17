@@ -52,6 +52,7 @@ else here exists to prove the source choice and lands in validation/topography/.
 """
 
 import os
+import sys
 import zipfile
 import numpy as np
 import requests
@@ -61,12 +62,18 @@ from rasterio.warp import reproject
 from rasterio.windows import from_bounds
 from tqdm import tqdm
 
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from repo_paths import data
+
 # ─────────────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────────────
-OUTPUT_DIR = "topography"          # production layers only
-VALIDATION_DIR = "validation/topography"   # evidence, never read by the model
-CLIMATE_TEMPLATE = "climate_current/wc2.1_10m_bio_1.tif"   # the target grid
+OUTPUT_DIR = data("topography")          # production layers only
+VALIDATION_DIR = data("validation", "topography")   # evidence, never read by the model
+CLIMATE_TEMPLATE = data("climate_current", "wc2.1_10m_bio_1.tif")   # the target grid
 
 MODE = "sample"      # options:
                      #   "sample" = representative windows/tiles (~350 MB) ← default

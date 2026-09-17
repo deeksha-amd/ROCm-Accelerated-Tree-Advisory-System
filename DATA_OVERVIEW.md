@@ -1,6 +1,11 @@
 # Data Overview
 
 What each dataset is, where it came from, and what we assume when using it.
+Copy-paste run commands are in `README.md`.
+
+**Layout:** USA 1 km scripts live at the repo root. The global 18 km POC lives
+under `poc/`. Rasters, GBIF, models, and downloaders live under `data/`
+(`data/scripts/` for downloads).
 
 **Shared grid:** every raster uses the same 2160 x 1080 global grid. One cell is
 1/6 degree, about **18.5 km** across. ~808,000 of 2.3M cells are land. So cell
@@ -12,16 +17,20 @@ What each dataset is, where it came from, and what we assume when using it.
 
 | Folder / file | What it is | Source | Year |
 |---|---|---|---|
-| `gbif_500_species.csv` | 392,725 "species seen here" records, 293 species, 143 countries | GBIF | 1500-2026, median **2024** |
-| `climate_current/` | 19 climate variables (temperature, rainfall, seasonality) | WorldClim 2.1 | **1970-2000** average |
-| `climate_recent/` | Same 19, **recommended for training** | Derived from WorldClim monthly | **2015-2024** |
-| `climate_2000_2015/` | Same 19, backup window | Derived from WorldClim monthly | **2000-2015** |
-| `climate_future_2050/` | Same 19, projected. One file, 19 layers | WorldClim / CMIP6, ssp245 | **2041-2060** |
-| `soil_data/aligned_10m/` | 11 soil properties x 2 depths = 22 layers | OpenLandMap + SoilGrids | 2020-2022 / 2020 |
-| `soil_data/soilgrids_5km/` | Raw reference copies. **Do not train on these** | SoilGrids 2.0 | 2020 |
-| `topography/` | Elevation on the shared grid. Nothing else | GEDTM30 v1.2 | 2006-2015 data |
-| `satellite/` | Land-cover **filters** for `recommend.py` (water, built-up, crop, snow, tree, exclusion). Vegetation is **not** an XGBoost input. Built by `satellite_rasters.py` | ESA WorldCover 10 m (2021 v200; 2020 fallback) | 2021 |
-| `validation/` | Evidence for why these sources were picked. **Not a model input** | various | — |
+| `data/gbif_500_species.csv` | 392,725 "species seen here" records, 293 species, 143 countries | GBIF | 1500-2026, median **2024** |
+| `data/climate_current/` | 19 climate variables (temperature, rainfall, seasonality) | WorldClim 2.1 | **1970-2000** average |
+| `data/climate_recent/` | Same 19, **recommended for training** | Derived from WorldClim monthly | **2015-2024** |
+| `data/climate_2000_2015/` | Same 19, backup window | Derived from WorldClim monthly | **2000-2015** |
+| `data/climate_future_2050/` | Same 19, projected. One file, 19 layers | WorldClim / CMIP6, ssp245 | **2041-2060** |
+| `data/soil_data/aligned_10m/` | 11 soil properties x 2 depths = 22 layers | OpenLandMap + SoilGrids | 2020-2022 / 2020 |
+| `data/soil_data/soilgrids_5km/` | Raw reference copies. **Do not train on these** | SoilGrids 2.0 | 2020 |
+| `data/topography/` | Elevation on the shared grid. Nothing else | GEDTM30 v1.2 | 2006-2015 data |
+| `data/satellite/` | Land-cover **filters** for `poc/recommend.py` (water, built-up, crop, snow, tree, exclusion). Vegetation is **not** an XGBoost input. Built by `data/scripts/satellite_rasters.py` | ESA WorldCover 10 m (2021 v200; 2020 fallback) | 2021 |
+| `data/country_data/USA/` | CONUS 1 km climate, soil, terrain (and USA 2050 BIO) | WorldClim / SoilGrids / GEDTM30 | mixed |
+| `data/species_occurrences/US/` | Cleaned + thinned US GBIF for the 1 km trainer | GBIF | mixed |
+| `data/models/` | Global 10-arc-minute XGBoost JSON | this repo | — |
+| `data/models_usa_30s/` | CONUS 1 km XGBoost JSON | this repo | — |
+| `data/validation/` | Evidence for why these sources were picked. **Not a model input** | various | — |
 
 ---
 
@@ -99,9 +108,10 @@ land we actually advise on. Tree cover also separates **90% of 40 species in the
 same direction** (temperature: 52%) — it answers "are there trees here?", not
 "what niche is this?".
 
-The POC filter stack is built by `python satellite_rasters.py`: ESA WorldCover
+The POC filter stack is built by `python data/scripts/satellite_rasters.py`: ESA WorldCover
 10 m class maps, streamed as COG overviews and averaged onto the shared 10-arc-
-minute grid. `recommend.py` reads those GeoTIFFs **after** scoring, never as `x`.
+minute grid. `poc/recommend.py` (and USA recommend, for the same 18 km filters at
+a pin) reads those GeoTIFFs **after** scoring, never as `x`.
 
 - **Filters only:** built-up, water, snow/ice, land and cropland fractions, plus
   `planting_exclusion_mask_10m.tif`. Apply to model **output**, never input.
@@ -124,8 +134,8 @@ minute grid. `recommend.py` reads those GeoTIFFs **after** scoring, never as `x`
 GEDTM30 is **bare-earth** and covers 85°N-65°S.
 
 The rival DEMs and sample tiles those numbers were measured on live in
-`validation/topography/`, not in `topography/`, which holds only the production
-elevation layer.
+`data/validation/topography/`, not in `data/topography/`, which holds only the
+production elevation layer.
 
 ---
 

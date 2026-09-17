@@ -17,6 +17,7 @@ onto the 2160x1080 WorldClim grid.
 
 import os
 import json
+import sys
 import requests
 import numpy as np
 import rasterio
@@ -24,11 +25,17 @@ from rasterio.warp import reproject, Resampling
 from affine import Affine
 from tqdm import tqdm
 
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from repo_paths import data
+
 # ─────────────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────────────
-OUTPUT_DIR = "soil_data"
-TEMPLATE = "climate_current/wc2.1_10m_bio_1.tif"   # defines the target grid
+OUTPUT_DIR = data("soil_data")
+TEMPLATE = data("climate_current", "wc2.1_10m_bio_1.tif")   # defines the target grid
 
 MODE = "sample"      # "sample" = 2 depths, 9 properties  (~150 MB, a few minutes)
                      # "full"   = 3 depths, 9 properties  (~250 MB)

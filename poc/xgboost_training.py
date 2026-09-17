@@ -11,6 +11,7 @@ number of boosting rounds.
 """
 
 import os
+import sys
 
 import numpy as np
 import pandas as pd
@@ -21,6 +22,12 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import GroupKFold, StratifiedGroupKFold
 
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from repo_paths import data, relpath
+
 N_SPATIAL_FOLDS = 5
 N_SPATIAL_BLOCKS = 10  # geographic clusters; each CV fold holds some out
 EARLY_STOPPING_ROUNDS = 30
@@ -28,10 +35,10 @@ MAX_BOOST_ROUNDS = 500  # ceiling; early stopping usually picks far fewer
 MIN_UNIQUE_CELLS = 80  # spatial CV is noise below this on an 18 km grid
 MIN_USABLE_FOLDS = 3   # do not save a model scored on 1–2 regions
 
-CLIMATE_DIR = "climate_current"
-SOIL_DIR = os.path.join("soil_data", "aligned_10m")
-TOPO_PATH = os.path.join("topography", "gedtm30", "gedtm30_v1.2_elev_10m.tif")
-MODEL_DIR = "models"
+CLIMATE_DIR = data("climate_current")
+SOIL_DIR = data("soil_data", "aligned_10m")
+TOPO_PATH = data("topography", "gedtm30", "gedtm30_v1.2_elev_10m.tif")
+MODEL_DIR = data("models")
 METRICS_PATH = os.path.join(MODEL_DIR, "metrics.csv")
 
 # Must match download_species.py. GBIF genus search also returns moths, birds,
@@ -394,7 +401,7 @@ def _append_metric(rows, **kwargs):
 
 def main():
     os.makedirs(MODEL_DIR, exist_ok=True)
-    df = pd.read_csv("gbif_500_species.csv")
+    df = pd.read_csv(data("gbif_500_species.csv"))
     predictors = PredictorRasters(collect_predictor_paths())
     n_clim = sum(1 for n in predictors.names if n.startswith("wc2.1_"))
     n_soil = sum(1 for n in predictors.names if n.endswith("_10m.tif")
@@ -511,7 +518,7 @@ def main():
             metrics, species=species, n_records=n_records,
             n_unique_cells=n_cells, n_absences=len(absence), auc=auc,
             n_trees=n_trees, n_folds_usable=n_usable, n_folds=n_folds,
-            model_path=model_path, status="saved",
+            model_path=relpath(model_path), status="saved",
         )
 
     pd.DataFrame(metrics).to_csv(METRICS_PATH, index=False)

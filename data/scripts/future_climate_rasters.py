@@ -4,14 +4,21 @@ CMIP6 projections, 19 bioclimatic variables
 """
 
 import os
+import sys
 import requests
 import zipfile
 from tqdm import tqdm
 
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from repo_paths import data
+
 # ─────────────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────────────
-OUTPUT_DIR = "climate_future_2050"
+OUTPUT_DIR = data("climate_future_2050")
 RESOLUTION = "10m"        # match your current climate resolution!
 
 # Global Climate Model (GCM) — pick one

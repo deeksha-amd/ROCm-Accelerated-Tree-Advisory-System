@@ -2,18 +2,18 @@
 
 Plug in more GBIF later
 -----------------------
-1. Retrain: python xgboost_training.py   # writes models/*.json + metrics.csv
+1. Retrain: python poc/xgboost_training.py   # writes data/models/*.json + metrics.csv
 2. Optional: add a row in data/species_traits.csv (common name, goals, warnings)
 3. Re-run this script. New models are picked up automatically.
 
 Example
 -------
-python satellite_rasters.py                                 # once; site filters
-python recommend.py --lat 51.51 --lon -0.13 --goal shade
-python recommend.py --lat 51.51 --lon -0.13 --goal shade --html suggest.html
-python recommend.py --address "Portland, Oregon" --goal beauty --sun part
-python recommend.py --lat 0 --lon -150                      # ocean → blocked
-python suitability_maps.py --species "Quercus robur"        # today vs 2050 map
+python data/scripts/satellite_rasters.py                    # once; site filters
+python poc/recommend.py --lat 51.51 --lon -0.13 --goal shade
+python poc/recommend.py --lat 51.51 --lon -0.13 --goal shade --html poc/maps/suggest.html
+python poc/recommend.py --address "Portland, Oregon" --goal beauty --sun part
+python poc/recommend.py --lat 0 --lon -150                  # ocean → blocked
+python poc/suitability_maps.py --species "Quercus robur"    # today vs 2050 map
 """
 
 from __future__ import annotations
@@ -32,23 +32,28 @@ import rasterio
 from rasterio.windows import Window
 import xgboost as xgb
 
-from catalog import (
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from poc.catalog import (
     MIN_AUC_DEFAULT,
     load_saved_models,
     load_traits_table,
     region_for_country,
     write_traits_stub,
 )
-from recommend_html import write_html
-from xgboost_training import collect_predictor_paths
+from poc.recommend_html import write_html
+from poc.xgboost_training import collect_predictor_paths
+from repo_paths import data
 
-SATELLITE_DIR = "satellite"
+SATELLITE_DIR = data("satellite")
 TOP_N = 5
-FUTURE_CLIMATE_PATH = os.path.join(
+FUTURE_CLIMATE_PATH = data(
     "climate_future_2050",
     "wc2.1_10m_bioc_MPI-ESM1-2-HR_ssp245_2041-2060.tif",
 )
-TEMPLATE_RASTER = os.path.join("climate_current", "wc2.1_10m_bio_1.tif")
+TEMPLATE_RASTER = data("climate_current", "wc2.1_10m_bio_1.tif")
 BIO_RE = re.compile(r"bio_(\d+)\.tif$", re.I)
 
 # Written by satellite_rasters.py. Substring fallback still works if you add layers.
@@ -223,13 +228,13 @@ def _as_fraction(val):
 def sample_satellite(lat, lon):
     """Optional site filter. Missing folder → no-op (POC still runs).
 
-    Never feeds pixels into XGBoost. Reads satellite/*.tif on the shared
-    10-arc-minute grid (skip satellite/raw/).
+    Never feeds pixels into XGBoost. Reads data/satellite/*.tif on the shared
+    10-arc-minute grid (skip data/satellite/raw/).
     """
     info = {"blocked": False, "notes": [], "values": {}}
     if not os.path.isdir(SATELLITE_DIR):
         info["notes"].append(
-            "No satellite/ folder yet — run python satellite_rasters.py, "
+            "No data/satellite/ folder yet — run python data/scripts/satellite_rasters.py, "
             "then re-run. Skipping water/city/exclusion checks."
         )
         return info
@@ -268,7 +273,7 @@ def sample_satellite(lat, lon):
 
     if not tifs:
         info["notes"].append(
-            "satellite/ exists but has no GeoTIFFs — run python satellite_rasters.py."
+            "data/satellite/ exists but has no GeoTIFFs — run python data/scripts/satellite_rasters.py."
         )
         return info
 
@@ -540,7 +545,7 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
             "ssp": "ssp245",
             "gcm": "MPI-ESM1-2-HR",
             "note": None if values_2050 is not None else (
-                "No 2050 raster — run python future_climate_rasters.py"
+                "No 2050 raster — run python data/scripts/future_climate_rasters.py"
                 + (f" ({future_err})" if future_err else "")
             ),
         },
@@ -633,9 +638,9 @@ def parse_args(argv=None):
     p.add_argument(
         "--html",
         nargs="?",
-        const="suggest.html",
+        const="poc/maps/suggest.html",
         default=None,
-        help="Write a Leaflet demo page (default path: suggest.html)",
+        help="Write a Leaflet demo page (default path: poc/maps/suggest.html)",
     )
     p.add_argument(
         "--write-traits-stub",

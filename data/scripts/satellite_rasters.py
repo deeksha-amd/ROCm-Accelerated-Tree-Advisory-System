@@ -24,10 +24,10 @@ Values are fractions in [0, 1]. Unmapped ocean cells are treated as water.
 
 Usage
 -----
-python satellite_rasters.py              # global (~10 min, 8 workers)
-python satellite_rasters.py --smoke      # 4 demo tiles, then recommend.py
-python satellite_rasters.py --workers 12
-python satellite_rasters.py --bbox -10,40,10,60
+python data/scripts/satellite_rasters.py              # global (~10 min, 8 workers)
+python data/scripts/satellite_rasters.py --smoke      # 4 demo tiles, then poc/recommend.py
+python data/scripts/satellite_rasters.py --workers 12
+python data/scripts/satellite_rasters.py --bbox -10,40,10,60
 """
 
 from __future__ import annotations
@@ -36,6 +36,7 @@ import argparse
 import json
 import os
 import re
+import sys
 import traceback
 import urllib.request
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -49,8 +50,14 @@ from rasterio.windows import transform as window_transform
 from rasterio.warp import reproject
 from tqdm import tqdm
 
-TEMPLATE = "climate_current/wc2.1_10m_bio_1.tif"
-OUTPUT_DIR = "satellite"
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from repo_paths import data
+
+TEMPLATE = data("climate_current", "wc2.1_10m_bio_1.tif")
+OUTPUT_DIR = data("satellite")
 RAW_DIR = os.path.join(OUTPUT_DIR, "raw")
 OVERSAMPLE = 2.0
 
@@ -434,7 +441,7 @@ def main(argv=None):
         "failed_tiles": [t for t, _ in failed[:50]],
         "layers": [name for name, _ in LAYER_SPECS],
         "training": "NEVER — vegetation layers are circular with the SDM target",
-        "recommend": "python recommend.py --lat 51.51 --lon -0.13",
+        "recommend": "python poc/recommend.py --lat 51.51 --lon -0.13",
     }
     man_path = os.path.join(OUTPUT_DIR, "MANIFEST.json")
     with open(man_path, "w") as f:
@@ -446,8 +453,8 @@ def main(argv=None):
             print(f"  {tile}: {err.splitlines()[-1][:160]}")
 
     print("\nNext:")
-    print("  python recommend.py --lat 51.51 --lon -0.13 --goal shade")
-    print("  python recommend.py --lat 0 --lon -150          # ocean → blocked")
+    print("  python poc/recommend.py --lat 51.51 --lon -0.13 --goal shade")
+    print("  python poc/recommend.py --lat 0 --lon -150          # ocean → blocked")
     print("=" * 50)
     print("DONE")
     print("=" * 50)

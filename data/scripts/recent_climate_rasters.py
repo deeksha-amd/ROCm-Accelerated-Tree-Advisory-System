@@ -60,20 +60,26 @@ import rasterio
 import requests
 from tqdm import tqdm
 
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from repo_paths import data
+
 # ─────────────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────────────
-SRC_DIR = "climate_monthly_src"          # shared cache of downloaded archives
-TEMPLATE = "climate_current/wc2.1_10m_bio_1.tif"
+SRC_DIR = data("climate_monthly_src")          # shared cache of downloaded archives
+TEMPLATE = data("climate_current", "wc2.1_10m_bio_1.tif")
 
 RESOLUTION = "10m"        # "10m", "5m", "2.5m" — must stay 10m to match the grid
 
 # ── The windows to build: name -> (first year, last year, output directory) ──
 # Add or edit entries here; nothing else needs changing.
 WINDOWS = {
-    "RECENT": (2015, 2024, "climate_recent"),
-    "BACKUP": (2000, 2015, "climate_2000_2015"),
-    "SAMPLE": (2020, 2024, "climate_recent_sample"),
+    "RECENT": (2015, 2024, data("climate_recent")),
+    "BACKUP": (2000, 2015, data("climate_2000_2015")),
+    "SAMPLE": (2020, 2024, data("climate_recent_sample")),
 }
 DEFAULT_WINDOWS = ("RECENT", "BACKUP")   # what a bare run builds
 

@@ -1,0 +1,41 @@
+species,common_name,use,notes
+# Seed list for USA 1 km XGBoost. Train these first, then grow with
+# data/usa_tree_species_list.csv (the full plantable checklist).
+# species is the only column the pipeline reads.
+#
+# The current US GBIF extract is incomplete (download still in progress).
+# White oak, sugar maple, coast redwood and honey locust are not in
+# gbif_trees_US_raw.csv yet; close stand-ins are used. Swap them back
+# when those names appear in the raw file, then re-run the cleaner.
+Quercus rubra,Northern red oak,street_park,eastern canopy
+Quercus virginiana,Southern live oak,street_park,gulf / southeast
+Quercus kelloggii,California black oak,native_woodland,Pacific
+Quercus phellos,Willow oak,street_park,stand-in until Quercus alba is in the US GBIF extract
+Acer rubrum,Red maple,street_park,widest-ranging eastern maple
+Acer saccharinum,Silver maple,street_park,stand-in until Acer saccharum is in the US GBIF extract
+Pinus strobus,Eastern white pine,timber,northeast
+Pinus taeda,Loblolly pine,timber,southeast timber
+Pinus palustris,Longleaf pine,timber,coastal plain
+Pinus ponderosa,Ponderosa pine,timber,interior west
+Pseudotsuga menziesii,Douglas fir,timber,Pacific northwest
+Liquidambar styraciflua,Sweetgum,street_park,south / midwest
+Liriodendron tulipifera,Tulip tree,timber,eastern hardwood
+Fagus grandifolia,American beech,native_woodland,eastern hardwood
+Betula papyrifera,Paper birch,street_park,north
+Platanus occidentalis,American sycamore,street_park,riparian east
+Ulmus americana,American elm,street_park,historic street tree
+Carya illinoinensis,Pecan,fruit_nut,south / orchard
+Juglans nigra,Black walnut,timber,central hardwood
+Taxodium distichum,Bald cypress,street_park,south wetlands
+Juniperus virginiana,Eastern red cedar,native_woodland,east / plains
+Tsuga canadensis,Eastern hemlock,native_woodland,appalachian
+Populus tremuloides,Quaking aspen,native_woodland,widest-ranging NA tree
+Sequoiadendron giganteum,Giant sequoia,ornamental,stand-in until Sequoia sempervirens is in the US GBIF extract
+Magnolia grandiflora,Southern magnolia,street_park,south
+Nyssa sylvatica,Black tupelo,street_park,east
+Robinia pseudoacacia,Black locust,agroforestry,widely planted
+Celtis occidentalis,Common hackberry,street_park,stand-in until Gleditsia triacanthos is in the US GBIF extract
+Fraxinus americana,White ash,timber,east
+Prunus serotina,Black cherry,timber,east
+Cornus florida,Flowering dogwood,ornamental,understorey tree
+Cercis canadensis,Eastern redbud,ornamental,understorey tree

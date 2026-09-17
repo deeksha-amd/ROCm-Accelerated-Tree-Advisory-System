@@ -4,14 +4,21 @@ Download CURRENT climate rasters from WorldClim
 """
 
 import os
+import sys
 import requests
 import zipfile
 from tqdm import tqdm
 
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from repo_paths import data
+
 # ─────────────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────────────
-OUTPUT_DIR = "climate_current"
+OUTPUT_DIR = data("climate_current")
 RESOLUTION = "10m"   # options: "10m", "5m", "2.5m", "30s"
                      # 10m = coarse/fast, 30s = fine/slow+large
 

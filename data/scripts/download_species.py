@@ -5,9 +5,18 @@ Properly finds 500 UNIQUE valid species with occurrence data
 
 from pygbif import species as gbif_species
 from pygbif import occurrences as occ
+import os
+import sys
+import time
+
 import pandas as pd
 from tqdm import tqdm
-import time
+
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from repo_paths import data
 
 # ─────────────────────────────────────────────────────
 # CONFIG
@@ -15,7 +24,7 @@ import time
 N_SPECIES = 500
 MIN_RECORDS = 30              # LOWERED from 100 (more species qualify)
 MAX_RECORDS_PER_SPECIES = 3000
-OUTPUT_FILE = "gbif_500_species.csv"
+OUTPUT_FILE = data("gbif_500_species.csv")
 
 # MORE genera so we can reach 500 unique species
 TREE_GENERA = [

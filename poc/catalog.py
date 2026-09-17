@@ -1,16 +1,23 @@
 """Species cards for the recommendation POC.
 
-New GBIF models: drop a .json in models/ (via xgboost_training.py) and this
+New GBIF models: drop a .json in data/models/ (via poc/xgboost_training.py) and this
 module will pick it up. Add an optional row to data/species_traits.csv to
 override the genus defaults (common name, goals, native region, warnings).
 """
 
 import os
+import sys
 
 import pandas as pd
 
-TRAITS_CSV = os.path.join("data", "species_traits.csv")
-METRICS_PATH = os.path.join("models", "metrics.csv")
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from repo_paths import data, resolve
+
+TRAITS_CSV = data("species_traits.csv")
+METRICS_PATH = data("models", "metrics.csv")
 MIN_AUC_DEFAULT = 0.70
 
 GENUS_ENGLISH = {
@@ -346,6 +353,7 @@ def load_saved_models(min_auc=MIN_AUC_DEFAULT, metrics_path=METRICS_PATH):
     metrics = pd.read_csv(metrics_path)
     saved = metrics[metrics["status"] == "saved"].copy()
     saved = saved[saved["auc"] >= float(min_auc)]
+    saved["model_path"] = saved["model_path"].map(resolve)
     saved = saved[saved["model_path"].map(os.path.isfile)]
     return saved.reset_index(drop=True)
 

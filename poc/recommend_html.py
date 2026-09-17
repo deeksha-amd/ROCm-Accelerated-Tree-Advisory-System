@@ -112,7 +112,8 @@ TEMPLATE = r"""<!DOCTYPE html>
   .track.today i { background: var(--today); }
   .track.future i { background: var(--future); }
   .pct { text-align: right; font-variant-numeric: tabular-nums; }
-  .why, .care { font-size: 0.88rem; line-height: 1.35; margin: 8px 0 0; }
+  .why, .care, .fi { font-size: 0.88rem; line-height: 1.35; margin: 8px 0 0; }
+  .fi { color: var(--muted); font-size: 0.8rem; }
   .care { color: var(--muted); }
   .warn { color: var(--blocked); font-size: 0.85rem; margin-top: 6px; }
   .future-line { font-size: 0.85rem; margin-top: 6px; color: #7a3e12; }
@@ -143,9 +144,12 @@ function pct(v) {
 }
 function clamp01(v) { return Math.max(0, Math.min(1, v || 0)); }
 
-const place = DATA.address || (DATA.lat.toFixed(3) + ", " + DATA.lon.toFixed(3));
-document.getElementById("place").textContent = place
-  + (DATA.goal && DATA.goal !== "any" ? " · goal: " + DATA.goal : "");
+const coords = (typeof DATA.lat === "number" && typeof DATA.lon === "number")
+  ? DATA.lat.toFixed(4) + ", " + DATA.lon.toFixed(4)
+  : "";
+const place = [DATA.address, coords, DATA.goal && DATA.goal !== "any" ? "goal: " + DATA.goal : ""]
+  .filter(Boolean).join("  ·  ");
+document.getElementById("place").textContent = place || coords;
 
 const cell = DATA.cell || {};
 const status = cell.status || "plantable";
@@ -162,8 +166,10 @@ if (cell.south !== undefined) {
 } else {
   map.setView([DATA.lat, DATA.lon], 7);
 }
+const grid = DATA.grid || {};
+const markerNote = grid.marker || "Score is for this ~18 km climate cell, not a backyard.";
 L.marker([DATA.lat, DATA.lon]).addTo(map)
-  .bindPopup("Score is for this ~18 km climate cell, not a backyard.");
+  .bindPopup(markerNote);
 
 const sat = (DATA.satellite && DATA.satellite.values) || {};
 const parts = [
@@ -204,6 +210,10 @@ if (blocked) {
       ? ""
       : `<div class="row"><span>2050</span><div class="track future"><i style="width:${clamp01(p.p_2050)*100}%"></i></div><span class="pct">${pct(p.p_2050)}</span></div>
          <div class="future-line">${p.future_note || ""}</div>`;
+    const fi = (p.feature_importance || []).slice(0, 5);
+    const fiHtml = fi.length
+      ? `<p class="fi">Model uses: ${fi.map(x => x.label + " " + Math.round((x.share||0)*100) + "%").join(" · ")}</p>`
+      : "";
     cards += `<article class="card">
       <span class="badge${risky}">${p.confidence || ""}</span>
       <h2>${i+1}. ${p.common_name}</h2>
@@ -211,6 +221,7 @@ if (blocked) {
       <div class="row"><span>Today</span><div class="track today"><i style="width:${clamp01(p.p)*100}%"></i></div><span class="pct">${pct(p.p)}</span></div>
       ${fut}
       <p class="why">${p.reason || ""}</p>
+      ${fiHtml}
       <p class="care">${p.native || ""} ${p.care || ""}</p>
       ${p.warning ? `<p class="warn">${p.warning}</p>` : ""}
     </article>`;
@@ -220,7 +231,7 @@ if (blocked) {
 document.getElementById("panel").innerHTML = `
   <div class="status ${status}">${status.replace("_", " ")} cell</div>
   <p>${DATA.site || ""}</p>
-  <p class="note">The box on the map is one 1/6° cell (~18 km). Shade, frost pockets and watering in a yard are not in the model.</p>
+  <p class="note">${grid.note || "The box on the map is one 1/6° cell (~18 km). Shade, frost pockets and watering in a yard are not in the model."}</p>
   ${mixHtml ? `<div class="mix">${mixHtml}</div><div class="legend">${legend}</div>` : ""}
   ${notes}
   ${cards}
@@ -229,6 +240,7 @@ document.getElementById("panel").innerHTML = `
     ${futureMeta.available
       ? "2050 uses CMIP6 " + (futureMeta.ssp || "ssp245") + " " + (futureMeta.period || "2041–2060") + "; soil and elevation stay as they are. Same XGBoost models, new BIO values — not a second training run."
       : "2050 bars omitted (future climate GeoTIFF not on disk)."}
+    "Model uses" is global XGBoost gain for that species, not a local explanation of this pin.
     Tree cover is a satellite filter, not an XGBoost feature.
   </footer>
 `;
