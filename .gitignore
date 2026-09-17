@@ -7,6 +7,7 @@ __pycache__/
 .pytest_cache/
 .ipynb_checkpoints/
 
+# ─── re-downloadable source caches ───
 # 2.6 GB of monthly-weather archives cached by recent_climate_rasters.py;
 # re-downloadable, so not worth committing
 climate_monthly_src/
@@ -16,8 +17,14 @@ data/climate_monthly_src/
 satellite/raw/
 data/satellite/raw/
 
-# Derived raster blocks. Regenerate with the *_rasters.py scripts rather than
-# committing; GitHub rejects files over 100 MB.
+# 8.3 GB of WorldClim, SoilGrids and GEDTM tiles cached by prepare_country.py.
+# Dropping it costs download time on the next country build and nothing else.
+country_src_cache/
+
+# ─── derived global raster blocks, ~3.2 GB total ───
+# XGBoost downloaders: data/scripts/*.py
+# Deep-learning downloaders: deep_learning_sdm/*.py
+# GitHub rejects files over 100 MB.
 soil_data/
 topography/
 satellite/
@@ -42,21 +49,112 @@ suggest.html
 maps/suggest.html
 poc/maps/suggest.html
 validation/
+
+# ─── per-country data trees ───
+# 274 MB for France, 186 MB for Spain, 2.4 GB for the USA, and every raster in
+# them is rebuilt by one command:
+#
+#   python deep_learning_sdm/prepare_country.py FRA
+#
+# so only the manifests are committed. Those are 36 KB and carry the source
+# URLs, the grid and the checksums each block was built from, which is what a
+# reviewer needs in order to trust a tree they cannot see.
+country_data/**/*.tif
+# source_flag rasters. "provenance" is a FORBIDDEN_PATH_TOKEN in sdm_features.py,
+# so these may never become predictors and are of no use outside a rebuild.
+country_data/*/provenance/
+
+# ─── training runs ───
+# Checkpoints, metric tables and per-species suitability GeoTIFFs, all rebuilt
+# by deep_sdm_training.py. One exception: the run the advisory actually serves.
+# Its checkpoint and metrics come to 364 KB and are committed so that the web
+# app and the CLI work on a fresh clone without a retrain. Its suitability
+# GeoTIFFs are not — they are 19 MB for 3 of the 96 species, and `--predict`
+# rebuilds them.
+deep_sdm_output/*
+!deep_sdm_output/fra_30s_96sp_bg1km/
+deep_sdm_output/fra_30s_96sp_bg1km/*
+!deep_sdm_output/fra_30s_96sp_bg1km/deep_sdm.pt
+!deep_sdm_output/fra_30s_96sp_bg1km/run_summary.json
+
+# ─── satellite circularity experiment ───
+# The NDVI and land-cover rasters, the occurrence and background snapshots and
+# the 3.1 MB per-species-fold-stratum table are all rebuilt by
+# deep_sdm_satellite_experiment.py. The result summaries are kept: they are the
+# measurement behind leaving vegetation layers out of the model, and they are
+# 25 KB.
+satellite_experiment/*
+!satellite_experiment/results/
+!satellite_experiment/FRA_30s/
+satellite_experiment/FRA_30s/*
+!satellite_experiment/FRA_30s/MANIFEST.json
+!satellite_experiment/FRA_30s/DO_NOT_TRAIN_ON_THIS.md
+
+# ─── generated logs and caches ───
+# prepare_country.py tees every stage into logs/ and appends to
+# STATUS_COUNTRIES.md as it goes. Both are generated progress output, not
+# authored documentation.
+logs/
+STATUS_COUNTRIES.md
+
+# Per-species reference score distributions, cached by advisory_app.py on its
+# first start against a given checkpoint. Derived from the checkpoint, rebuilt
+# in a few seconds, and keyed by checkpoint mtime, so never worth committing.
+advisory_cache/
+
+# ─── occurrence and background tables ───
+# CSVs are ignored wholesale because the pipelines emit hundreds of them: a file
+# per GBIF page, per-country raw dumps and flag tables, 278 MB in
+# species_occurrences/ alone. The few the model actually trains on, and the
+# curated lists that decide what may be recommended, are re-admitted by name.
 *.csv
 !data/gbif_500_species.csv
-!data/species_traits.csv
+!gbif_500_species.csv
+# The curated species lists. Which trees to recommend is a product decision, so
+# these are edited by hand and belong with the code.
+!deep_learning_sdm/tree_species_list.csv
+!deep_learning_sdm/tree_species_list_ES.csv
+!deep_learning_sdm/tree_species_list_US.csv
 !data/usa_tree_species_seed.csv
 !data/usa_tree_species_list.csv
+!data/species_traits.csv
+# What the model trains on: cleaned, and cleaned then thinned to 18.5 km.
+!species_occurrences/gbif_trees_clean.csv
+!species_occurrences/gbif_trees_thinned.csv
+# The France target-group backgrounds, native to the 1 km and 18.5 km grids.
+# background_points.csv is deliberately absent: sampling_effort.py writes that
+# country-agnostic name for whichever country ran last, and it is currently a
+# byte-for-byte copy of Spain's draw.
+!sampling_effort/background_FR_30s.csv
+!sampling_effort/background_FR.csv
+# Cross-validation metrics for the served run.
+!deep_sdm_output/fra_30s_96sp_bg1km/cv_metrics_by_species.csv
+!deep_sdm_output/fra_30s_96sp_bg1km/cv_metrics_by_fold.csv
+# Circularity result tables, minus the 3.1 MB per-species-fold-stratum one.
+!satellite_experiment/results/*.csv
+satellite_experiment/results/metrics_by_species_fold_stratum.csv
 !data/models/metrics.csv
 !data/models_usa_30s/metrics.csv
 !data/models_usa_30s/feature_names.txt
-!gbif_500_species.csv
 !models/metrics.csv
 !models_usa_30s/metrics.csv
 !models_usa_30s/feature_names.txt
 
-# USA 1 km occurrence tables (regenerate with clean_species_usa_30s.py)
-species_occurrences/
+# ─── effort surfaces ───
+# 76 MB of GeoTIFFs in sampling_effort/. The two the France profiles read are
+# kept; the US and Spain surfaces, the smoothed variants and the built-up
+# diagnostics are rebuilt by `sampling_effort.py --surface`.
+sampling_effort/*.tif
+!sampling_effort/plant_effort_FR_30s.tif
+!sampling_effort/plant_effort_FR_10m.tif
+
+# ─── raw GBIF pages ───
+# One CSV and one JSON per species per country, plus the per-country raw dumps:
+# 278 MB and many hours of throttled downloading. Kept on disk, never committed.
+# The cleaned files above are what training reads. Species plans, taxonomy
+# caches, cleaning reports and manifests stay tracked as provenance, and
+# advisory_service.py reads the plans and caches for common names.
+species_occurrences/*/raw/
 data/species_occurrences/
 
 # USA 1 km boosters; keep metrics/feature names if present

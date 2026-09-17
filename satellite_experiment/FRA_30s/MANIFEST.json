@@ -1,0 +1,77 @@
+{
+  "block": "satellite predictors, EXPERIMENT ONLY",
+  "written_by": "satellite_predictor_block.py",
+  "consumed_by": "deep_sdm_satellite_experiment.py",
+  "on_predictor_grid": true,
+  "production_predictor": false,
+  "why_it_exists": "The project excluded vegetation layers from the predictor set on measured grounds (vegetation alone AUC 0.791 vs 0.711 for the whole environmental set, but +0.001 on cleared farmland). This block lets that finding be re-tested on the France 1 km data rather than assumed.",
+  "profile": "fra_30s",
+  "grid": {
+    "width": 1860,
+    "height": 1260,
+    "crs": "EPSG:4326",
+    "transform": [
+      0.008333333333333333,
+      0.0,
+      -5.5,
+      0.0,
+      -0.008333333333333333,
+      51.5
+    ]
+  },
+  "layers": [
+    "landcover_bare_frac",
+    "landcover_builtup_frac",
+    "landcover_cropland_frac",
+    "landcover_grass_natural_frac",
+    "landcover_land_frac",
+    "landcover_shrub_frac",
+    "landcover_snowice_frac",
+    "landcover_tree_broadleaf_frac",
+    "landcover_tree_frac",
+    "landcover_tree_needleleaf_frac",
+    "landcover_water_frac",
+    "ndvi_growing_season_mean",
+    "ndvi_observed_mean",
+    "ndvi_peak",
+    "ndvi_seasonal_amplitude",
+    "soilmoisture_amplitude",
+    "soilmoisture_mean"
+  ],
+  "coverage_pct": {
+    "landcover_bare_frac": 69.2,
+    "landcover_builtup_frac": 69.2,
+    "landcover_cropland_frac": 69.2,
+    "landcover_grass_natural_frac": 69.2,
+    "landcover_land_frac": 69.43,
+    "landcover_shrub_frac": 69.2,
+    "landcover_snowice_frac": 69.2,
+    "landcover_tree_broadleaf_frac": 69.2,
+    "landcover_tree_frac": 69.2,
+    "landcover_tree_needleleaf_frac": 69.2,
+    "landcover_water_frac": 69.2,
+    "ndvi_growing_season_mean": 66.36,
+    "ndvi_observed_mean": 66.36,
+    "ndvi_peak": 66.36,
+    "ndvi_seasonal_amplitude": 66.36,
+    "soilmoisture_amplitude": 64.91,
+    "soilmoisture_mean": 64.91
+  },
+  "honest_resolution": {
+    "landcover_*": "~1 km, area-mean of 3x3 native 300 m ESA CCI PFT",
+    "ndvi_*": "~9.3 km, 1/12 deg PKU GIMMS, nearest onto 1 km",
+    "soilmoisture_*": "~28 km, 0.25 deg ESA CCI, via the 18.5 km block"
+  },
+  "deliberately_excluded": {
+    "planting_exclusion_mask": "output filter; bit 16 is a thresholded closed-canopy-forest label",
+    "ndvi_observed_semimonths": "composite count, metadata not signal",
+    "soilmoisture_months_observed": "retrieval gaps track canopy density, so it is a back-door tree-cover layer",
+    "landcover_majority_class": "categorical class codes carry a false ordering as one linear column"
+  },
+  "sources": {
+    "landcover": "ESA CCI Land Cover PFT v2.0.81, epoch 2020, 300 m",
+    "ndvi": "PKU GIMMS NDVI V1.2, 2021-2022, 1/12 deg, semi-monthly",
+    "soilmoisture": "ESA CCI Soil Moisture v09.2 COMBINED, 0.25 deg"
+  },
+  "elapsed_seconds": 4.3
+}

@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<!--
+  Single page for the deep SDM planting advisory.
+
+  No build step and no framework: one file, plus Leaflet from a CDN for the
+  map. The map is strictly optional — if the CDN or the tile server is
+  unreachable the script notices, hides the map panel and says so, and the
+  typed latitude/longitude form keeps working. That is deliberate; the map is a
+  convenience over the real input, not the input itself.
+
+  What this page deliberately does not do is decide anything. The five-species
+  cap, the split into "well suited to this spot" and "safe general choices",
+  the invasive separation and every sentence of plain language come from
+  /api/recommend, which is the same code path the command line prints. A second
+  vocabulary invented here would drift from the one in advisory_service.py
+  within a week, and then two users comparing notes would be reading different
+  advice from the same model.
+
+  The raw percentile and AUC are still in the payload and still shown — in one
+  collapsed block at the end, with a key. They are not in the main list,
+  because "p 85.3  AUC 0.698" is two unexplained numbers measuring two
+  unrelated things, and the second one is a property of the model rather than
+  of the place the reader asked about.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tree planting advisory</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+  :root {
+    --ink: #1b2a20; --muted: #5d6f63; --line: #d8e2da; --bg: #f5f8f5;
+    --card: #ffffff; --green: #2f6b46; --green-soft: #e6f1ea;
+    --warn: #8a5a12; --warn-soft: #fdf3e0; --stop: #8c2f2f; --stop-soft: #fbeceb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header { background: var(--green); color: #fff; padding: 18px 22px; }
+  header h1 { margin: 0; font-size: 20px; letter-spacing: .2px; }
+  header p { margin: 5px 0 0; opacity: .88; font-size: 13px; max-width: 78ch; }
+  main { max-width: 1180px; margin: 0 auto; padding: 20px; }
+  .columns { display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
+  @media (max-width: 900px) { .columns { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px; margin-bottom: 16px;
+  }
+  .card h2 { margin: 0 0 10px; font-size: 15px; text-transform: uppercase;
+             letter-spacing: .06em; color: var(--muted); }
+
+  label { display: block; font-size: 12px; color: var(--muted);
+          margin-bottom: 4px; text-transform: uppercase; letter-spacing: .05em; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  input[type=text], input[type=number] {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--line);
+    border-radius: 6px; font: inherit; background: #fff;
+  }
+  input:focus { outline: 2px solid var(--green); border-color: transparent; }
+  button {
+    margin-top: 12px; width: 100%; padding: 10px; border: 0; border-radius: 6px;
+    background: var(--green); color: #fff; font: inherit; font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover { background: #26563a; }
+  button.secondary { background: #6b7d71; }
+  button:disabled { background: #9db0a3; cursor: progress; }
+  .examples { margin-top: 12px; font-size: 13px; color: var(--muted); }
+  .examples a { color: var(--green); cursor: pointer; text-decoration: underline;
+                margin-right: 10px; white-space: nowrap; }
+
+  #map { height: 330px; border-radius: 8px; border: 1px solid var(--line); }
+  #map-fallback { display: none; font-size: 13px; color: var(--muted);
+                  background: var(--bg); border: 1px dashed var(--line);
+                  border-radius: 8px; padding: 14px; }
+
+  .status { border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
+            border: 1px solid; }
+  .status h3 { margin: 0 0 6px; font-size: 17px; }
+  .status p { margin: 0; font-size: 14px; }
+  .status.ok    { background: var(--green-soft); border-color: #bcd9c7; }
+  .status.warn  { background: var(--warn-soft);  border-color: #ecd6a8; }
+  .status.stop  { background: var(--stop-soft);  border-color: #edc3c0; }
+
+  .group { margin-bottom: 18px; }
+  .group > h3 {
+    margin: 0 0 2px; font-size: 14.5px; color: var(--green);
+  }
+  .group > p.blurb { margin: 0 0 10px; font-size: 12.5px; color: var(--muted);
+                     max-width: 84ch; }
+
+  ol.species { list-style: none; margin: 0; padding: 0; counter-reset: pick; }
+  ol.species li {
+    display: grid; grid-template-columns: 26px 1fr auto; gap: 12px;
+    align-items: start; padding: 11px 0; border-top: 1px solid var(--line);
+  }
+  ol.species li:first-child { border-top: 0; }
+  .num { color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .name { font-weight: 600; font-size: 15.5px; }
+  .sci  { font-style: italic; color: var(--muted); font-weight: 400; font-size: 13px; }
+  .rating { margin-top: 3px; }
+  .why  { font-size: 12.5px; color: var(--muted); margin-top: 2px; max-width: 78ch; }
+  .why.flag { color: var(--warn); }
+  .tags { text-align: right; white-space: nowrap; }
+  .tag {
+    display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 99px;
+    border: 1px solid var(--line); color: var(--muted); margin-left: 4px;
+  }
+  .tag.stop { background: var(--stop-soft); color: var(--stop); border-color: #edc3c0; }
+
+  .nearby { border-left: 3px solid var(--green); padding-left: 12px;
+            margin-bottom: 12px; }
+  .nearby h4 { margin: 0 0 3px; font-size: 14px; }
+  .nearby ul { margin: 4px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .nearby .coords { font-size: 12px; color: var(--muted); }
+
+  details { margin-top: 10px; }
+  details summary { cursor: pointer; font-size: 13px; color: var(--green);
+                    font-weight: 600; }
+  table.metrics { border-collapse: collapse; width: 100%; margin-top: 10px;
+                  font-size: 13px; font-variant-numeric: tabular-nums; }
+  table.metrics th, table.metrics td {
+    text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--line);
+  }
+  table.metrics th:first-child, table.metrics td:first-child { text-align: left; }
+  table.metrics th { color: var(--muted); font-weight: 600; font-size: 11.5px;
+                     text-transform: uppercase; letter-spacing: .04em; }
+  .caveats { font-size: 12.5px; color: var(--muted); }
+  .caveats li { margin-bottom: 6px; }
+  .meta { font-size: 12px; color: var(--muted); }
+  .meta code { background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Tree planting advisory</h1>
+  <p>Enter a location and the trained species distribution model suggests which
+     common trees suit it. Ratings compare this spot with the rest of the
+     covered region — they are not survival chances.</p>
+</header>
+
+<main>
+<div class="columns">
+
+  <!-- ─── input column ─────────────────────────────────────────── -->
+  <div>
+    <div class="card">
+      <h2>Location</h2>
+      <div class="pair">
+        <div>
+          <label for="lat">Latitude</label>
+          <input type="text" id="lat" value="43.55" inputmode="decimal">
+        </div>
+        <div>
+          <label for="lon">Longitude</label>
+          <input type="text" id="lon" value="3.30" inputmode="decimal">
+        </div>
+      </div>
+      <label for="top" style="margin-top:10px">How many suggestions</label>
+      <input type="number" id="top" value="5" min="1" max="20" step="1">
+      <button id="go">Get recommendations</button>
+      <div class="examples">
+        Try:
+        <a data-lat="43.55" data-lon="3.30">Mediterranean</a>
+        <a data-lat="44.95" data-lon="6.35">Alps</a>
+        <a data-lat="49.85" data-lon="2.35">Picardy</a>
+        <a data-lat="48.2458" data-lon="1.5208">A poor spot</a>
+        <a data-lat="48.8566" data-lon="2.3522">Paris</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Or click the map</h2>
+      <div id="map"></div>
+      <div id="map-fallback">
+        The map could not load (no network route to the tile server). Typing
+        coordinates above works exactly the same.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Coverage</h2>
+      <div id="coverage" class="meta">checking…</div>
+    </div>
+  </div>
+
+  <!-- ─── results column ───────────────────────────────────────── -->
+  <div id="results">
+    <div class="card"><p class="meta">Enter coordinates to get started.</p></div>
+  </div>
+
+</div>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+"use strict";
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
+  (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : "");
+const fmt = (v) => (v == null ? "n/a" : Number(v).toFixed(3));
+
+let map = null, marker = null;
+
+/* ─── map (optional) ───────────────────────────────────────────── */
+function initMap() {
+  if (typeof L === "undefined") {           // CDN unreachable
+    $("map").style.display = "none";
+    $("map-fallback").style.display = "block";
+    return;
+  }
+  map = L.map("map").setView([46.6, 2.4], 5);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 17, attribution: "&copy; OpenStreetMap contributors"
+  }).addTo(map);
+  map.on("click", (e) => {
+    $("lat").value = e.latlng.lat.toFixed(4);
+    $("lon").value = e.latlng.lng.toFixed(4);
+    query();
+  });
+}
+
+function placeMarker(lat, lon, extras) {
+  if (!map) return;
+  if (marker) marker.remove();
+  marker = L.layerGroup().addTo(map);
+  L.marker([lat, lon]).addTo(marker);
+  // Nearby alternatives get a lighter ring, so "somewhere else" reads as
+  // somewhere else on the map too.
+  (extras || []).forEach((p) => L.circleMarker([p.latitude, p.longitude], {
+    radius: 7, color: "#2f6b46", weight: 2, fillOpacity: 0.25
+  }).addTo(marker).bindTooltip(p.how_far));
+  if (map.getZoom() < 7) map.setView([lat, lon], 9);
+  else map.panTo([lat, lon]);
+}
+
+/* ─── coverage panel ───────────────────────────────────────────── */
+async function loadCoverage() {
+  try {
+    const body = await (await fetch("/api/health")).json();
+    if (!body.ready) {
+      $("coverage").innerHTML =
+        `<span style="color:var(--stop)"><b>No model loaded.</b> ` +
+        esc(body.boot_error || (body.failures[0] && body.failures[0].error) ||
+            "See the server log.") + `</span>`;
+      return;
+    }
+    $("coverage").innerHTML = body.regions.map((r) => `
+      <div style="margin-bottom:8px">
+        <b>${esc(r.region)}</b> — ${esc(r.resolution)}<br>
+        ${r.n_species} species<br>
+        <code>lat ${r.bounds.south}…${r.bounds.north},
+              lon ${r.bounds.west}…${r.bounds.east}</code>
+      </div>`).join("") +
+      `<div>Anywhere else returns "outside coverage" rather than a guess.</div>
+       <div style="margin-top:6px">Running on <code>${esc(body.device)}</code>.</div>` +
+      (body.failures.length
+        ? `<div style="color:var(--stop);margin-top:6px">${body.failures.length}
+           run(s) failed to load: ${esc(body.failures[0].error)}</div>` : "");
+  } catch (err) {
+    $("coverage").textContent = "Could not reach the server.";
+  }
+}
+
+/* ─── querying ─────────────────────────────────────────────────── */
+async function query(override) {
+  const lat = $("lat").value.trim(), lon = $("lon").value.trim();
+  const top = Math.max(1, Math.min(20, parseInt($("top").value, 10) || 5));
+  $("go").disabled = true;
+  $("results").innerHTML = `<div class="card"><p class="meta">Scoring…</p></div>`;
+  try {
+    const url = `/api/recommend?lat=${encodeURIComponent(lat)}` +
+                `&lon=${encodeURIComponent(lon)}&top=${top}` +
+                (override ? "&override=1" : "");
+    const body = await (await fetch(url)).json();
+    render(body);
+    if (body.latitude != null) {
+      placeMarker(body.latitude, body.longitude,
+                  (body.nearby && body.nearby.suggestions) || []);
+    }
+  } catch (err) {
+    $("results").innerHTML =
+      `<div class="status stop"><h3>Could not reach the server</h3>
+       <p>${esc(err.message)}</p></div>`;
+  } finally {
+    $("go").disabled = false;
+  }
+}
+
+/* ─── rendering ────────────────────────────────────────────────── */
+const TONE = { ok: "ok", ok_overridden: "warn", ok_poor: "warn",
+               excluded: "stop", outside_coverage: "warn", no_data: "warn",
+               bad_request: "stop", unavailable: "stop", error: "stop" };
+
+function render(b) {
+  const parts = [];
+
+  parts.push(`
+    <div class="status ${TONE[b.status] || "warn"}">
+      <h3>${esc(b.headline || b.status)}</h3>
+      <p>${esc(b.detail || "")}</p>
+      ${b.land_cover_reading ? `<p style="margin-top:6px">${esc(b.land_cover_reading)}</p>` : ""}
+      ${b.can_override ? `<button class="secondary" id="override"
+          style="width:auto;padding:7px 14px">Show the ranking anyway</button>` : ""}
+    </div>`);
+
+  if (b.exclusions && b.exclusions.length) {
+    parts.push(card("Land use at this point", b.exclusions.map(flagRow).join("")));
+  }
+  if (b.advisory_flags && b.advisory_flags.length) {
+    parts.push(card("Notes on the land here",
+                    b.advisory_flags.map(flagRow).join("")));
+  }
+
+  // The recommendations arrive already capped and already grouped by the
+  // service; the page just keeps consecutive runs of one group together.
+  const rows = b.recommendations || [];
+  if (rows.length) {
+    const labels = b.group_labels || {}, blurbs = b.group_blurbs || {};
+    let html = "", last = null, n = 0;
+    for (const row of rows) {
+      if (row.group !== last) {
+        if (last !== null) html += `</ol></div>`;
+        html += `<div class="group"><h3>${esc(labels[row.group] || row.group)}</h3>
+                 <p class="blurb">${esc(blurbs[row.group] || "")}</p>
+                 <ol class="species">`;
+        last = row.group;
+      }
+      html += speciesRow(row, ++n);
+    }
+    html += `</ol></div>`;
+    parts.push(card(`What to plant here — best ${rows.length}`, html));
+  }
+
+  if (b.invasive_warnings && b.invasive_warnings.length) {
+    parts.push(`<div class="card">
+      <h2 style="color:var(--stop)">Do not plant these</h2>
+      <p class="blurb">${esc((b.group_blurbs || {}).invasive || "")}</p>
+      <ol class="species">
+        ${b.invasive_warnings.map((r, i) => speciesRow(r, i + 1, true)).join("")}
+      </ol></div>`);
+  }
+
+  if (b.nearby && b.nearby.suggestions && b.nearby.suggestions.length) {
+    parts.push(card("Nearby places worth trying instead", `
+      <p class="blurb">${esc(b.nearby.why)}</p>
+      ${b.nearby.suggestions.map(nearbyRow).join("")}
+      <p class="why" style="margin-top:10px">${esc(b.nearby.caveat)}</p>`));
+  }
+
+  if (b.caveats && b.caveats.length) {
+    parts.push(`<div class="card"><details open><summary>How to read this</summary>
+      <ul class="caveats">${b.caveats.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>
+      </details></div>`);
+  }
+
+  // The figures, last and folded away. Present, labelled, optional.
+  if (rows.length) parts.push(metricsBlock(b));
+
+  $("results").innerHTML = parts.join("");
+  const btn = $("override");
+  if (btn) btn.onclick = () => query(true);
+}
+
+function speciesRow(r, n, isWarning) {
+  const tags = [];
+  if (r.use_label) tags.push(`<span class="tag">${esc(r.use_label)}</span>`);
+  if (r.caution === "do_not_plant")
+    tags.push(`<span class="tag stop">invasive</span>`);
+  const extra = [];
+  if (r.cutoff_note) extra.push(esc(r.cutoff_note));
+  if (r.caution === "caution" && r.notes)
+    extra.push("Watch out: " + esc(r.notes) + ".");
+  return `<li>
+    <span class="num">${n}</span>
+    <span>
+      <span class="name">${esc(r.display_name)}</span>
+      ${r.common_name ? `<span class="sci">${esc(r.species)}</span>` : ""}
+      <div class="rating">${esc(cap(r.rating_phrase))}.</div>
+      <div class="why">Model confidence: ${esc(r.confidence_phrase)}.</div>
+      ${extra.length ? `<div class="why flag">${extra.join(" ")}</div>` : ""}
+      ${isWarning && r.caution_note
+        ? `<div class="why flag">${esc(r.caution_note)}</div>` : ""}
+    </span>
+    <span class="tags">${tags.join("")}</span>
+  </li>`;
+}
+
+function nearbyRow(item) {
+  return `<div class="nearby">
+    <h4>${esc(cap(item.how_far))}</h4>
+    <div class="coords">${item.latitude}, ${item.longitude}${
+      (item.advisory_flags || []).map((f) => " — " + esc(f.title.toLowerCase())).join("")}</div>
+    <ul>${item.recommendations.map((r) =>
+      `<li><b>${esc(r.display_name)}</b> — ${esc(r.rating_phrase)}</li>`).join("")}</ul>
+  </div>`;
+}
+
+function metricsBlock(b) {
+  const all = (b.recommendations || []).concat(b.invasive_warnings || []);
+  const region = b.region || {};
+  const t = b.totals || {};
+  const cut = { true: "passes", false: "below", null: "n/a" };
+  return `<div class="card"><details>
+    <summary>The numbers behind this (not needed to use the advice)</summary>
+    <table class="metrics">
+      <tr><th>Species</th><th>Rating</th><th>Confidence</th><th>Raw score</th>
+          <th>Model cut-off</th></tr>
+      ${all.map((r) => `<tr>
+        <td>${esc(r.display_name)}</td>
+        <td>${r.site_percentile.toFixed(1)}</td>
+        <td>${r.model_auc == null ? "n/a" : r.model_auc.toFixed(3)}</td>
+        <td>${r.site_index.toFixed(3)}</td>
+        <td>${cut[String(r.above_model_threshold)]}</td></tr>`).join("")}
+    </table>
+    <p class="why" style="margin-top:10px">${esc(b.metrics_key || "")}</p>
+    <p class="why"><b>Model:</b> ${esc(region.run)} on ${esc(region.label)},
+      ${region.n_species} species. Cross-validated mean AUC ${fmt(region.mean_auc)},
+      TSS ${fmt(region.mean_tss)}, Boyce ${fmt(region.mean_boyce)}.
+      Ratings are against ${(region.reference_cells || 0).toLocaleString()}
+      sampled cells of covered land.
+      ${b.cell ? `Nearest 1 km cell centre ${b.cell.latitude.toFixed(4)},
+        ${b.cell.longitude.toFixed(4)}.` : ""}</p>
+    <p class="why">${esc(b.threshold_note || "")}</p>
+    <p class="why">Considered ${Object.values(t).reduce((a, c) => a + c, 0)}
+      species: ${t.well_matched || 0} the model can match to a specific place,
+      ${t.general || 0} that grow region-wide, ${t.invasive || 0} flagged
+      invasive, ${t.unrankable || 0} it cannot rank.</p>
+  </details></div>`;
+}
+
+const card = (title, inner) => `<div class="card"><h2>${esc(title)}</h2>${inner}</div>`;
+const flagRow = (f) =>
+  `<p style="margin:0 0 8px"><b>${esc(f.title)}.</b> ${esc(f.detail)}</p>`;
+
+/* ─── wiring ───────────────────────────────────────────────────── */
+$("go").onclick = () => query(false);
+["lat", "lon", "top"].forEach((id) => $(id).addEventListener("keydown", (e) => {
+  if (e.key === "Enter") query(false);
+}));
+document.querySelectorAll(".examples a").forEach((a) => a.onclick = () => {
+  $("lat").value = a.dataset.lat; $("lon").value = a.dataset.lon; query(false);
+});
+
+initMap();
+loadCoverage();
+query(false);
+</script>
+</body>
+</html>

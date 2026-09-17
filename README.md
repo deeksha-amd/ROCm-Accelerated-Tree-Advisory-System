@@ -2,7 +2,7 @@
 
 One XGBoost model per tree species: given a location’s climate, soil, and terrain, how much does it look like places where that species has been recorded? Latitude/longitude only look up the raster cell. They are not features.
 
-The **main path is the contiguous USA at 1 km** (30 arcsec). An older global **18 km** demo lives in `poc/`.
+The **main path is the contiguous USA at 1 km** (30 arcsec). An older global **18 km** demo lives in `poc/`. A separate **deep-learning SDM** pipeline lives in `deep_learning_sdm/` (see `deep_learning_sdm/COMMANDS.md`).
 
 Run every command from this directory (`hackathon_2026/`), with the venv on:
 
@@ -26,6 +26,7 @@ Training needs a GPU (`device=cuda`, ROCm on MI300X). Recommend and maps run on 
 | `poc/` | Global 18 km train / recommend / oak–Seville maps |
 | `data/` | Rasters, GBIF, species lists, saved models |
 | `data/scripts/` | Downloaders (climate, soil, topography, satellite, GBIF) |
+| `deep_learning_sdm/` | Deep-learning SDM + advisory (France 1 km served run) |
 | `maps/` | USA HTML (`austin.html`, live oak, …) |
 | `repo_paths.py` | Shared `data/` locations (imported, not run) |
 

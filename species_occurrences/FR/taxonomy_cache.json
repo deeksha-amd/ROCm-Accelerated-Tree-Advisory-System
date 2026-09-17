@@ -1,0 +1,952 @@
+{
+  "Abies alba": {
+    "class": "Pinopsida",
+    "family": "Pinaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2685484
+  },
+  "Acacia dealbata": {
+    "class": "Magnoliopsida",
+    "family": "Fabaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fabales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2979474
+  },
+  "Acer campestre": {
+    "class": "Magnoliopsida",
+    "family": "Sapindaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Sapindales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3189863
+  },
+  "Acer monspessulanum": {
+    "class": "Magnoliopsida",
+    "family": "Sapindaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Sapindales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 7262958
+  },
+  "Acer negundo": {
+    "class": "Magnoliopsida",
+    "family": "Sapindaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Sapindales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3189866
+  },
+  "Acer opalus": {
+    "class": "Magnoliopsida",
+    "family": "Sapindaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Sapindales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 7100278
+  },
+  "Acer platanoides": {
+    "class": "Magnoliopsida",
+    "family": "Sapindaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Sapindales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3189846
+  },
+  "Acer pseudoplatanus": {
+    "class": "Magnoliopsida",
+    "family": "Sapindaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Sapindales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3189870
+  },
+  "Aesculus hippocastanum": {
+    "class": "Magnoliopsida",
+    "family": "Sapindaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Sapindales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3189815
+  },
+  "Ailanthus altissima": {
+    "class": "Magnoliopsida",
+    "family": "Simaroubaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Sapindales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3190653
+  },
+  "Alnus glutinosa": {
+    "class": "Magnoliopsida",
+    "family": "Betulaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fagales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2876213
+  },
+  "Alnus incana": {
+    "class": "Magnoliopsida",
+    "family": "Betulaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fagales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 9148577
+  },
+  "Arbutus unedo": {
+    "class": "Magnoliopsida",
+    "family": "Ericaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Ericales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2882803
+  },
+  "Aria edulis": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 8411755
+  },
+  "Betula pendula": {
+    "class": "Magnoliopsida",
+    "family": "Betulaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fagales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5331916
+  },
+  "Betula pubescens": {
+    "class": "Magnoliopsida",
+    "family": "Betulaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fagales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 9118014
+  },
+  "Carpinus betulus": {
+    "class": "Magnoliopsida",
+    "family": "Betulaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fagales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2875818
+  },
+  "Castanea sativa": {
+    "class": "Magnoliopsida",
+    "family": "Fagaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fagales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5333294
+  },
+  "Cedrus atlantica": {
+    "class": "Pinopsida",
+    "family": "Pinaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5284702
+  },
+  "Celtis australis": {
+    "class": "Magnoliopsida",
+    "family": "Cannabaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2984492
+  },
+  "Cercis siliquastrum": {
+    "class": "Magnoliopsida",
+    "family": "Fabaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fabales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5353590
+  },
+  "Cormus domestica": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3013215
+  },
+  "Cornus mas": {
+    "class": "Magnoliopsida",
+    "family": "Cornaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Cornales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3082263
+  },
+  "Corylus avellana": {
+    "class": "Magnoliopsida",
+    "family": "Betulaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fagales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2875979
+  },
+  "Crataegus laevigata": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 8252683
+  },
+  "Crataegus monogyna": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 9220780
+  },
+  "Cupressus sempervirens": {
+    "class": "Pinopsida",
+    "family": "Cupressaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2684030
+  },
+  "Cydonia oblonga": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5362215
+  },
+  "Fagus sylvatica": {
+    "class": "Magnoliopsida",
+    "family": "Fagaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fagales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2882316
+  },
+  "Ficus carica": {
+    "class": "Magnoliopsida",
+    "family": "Moraceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5361909
+  },
+  "Fraxinus angustifolia": {
+    "class": "Magnoliopsida",
+    "family": "Oleaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Lamiales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 7325877
+  },
+  "Fraxinus excelsior": {
+    "class": "Magnoliopsida",
+    "family": "Oleaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Lamiales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3172358
+  },
+  "Fraxinus ornus": {
+    "class": "Magnoliopsida",
+    "family": "Oleaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Lamiales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3172347
+  },
+  "Ilex aquifolium": {
+    "class": "Magnoliopsida",
+    "family": "Aquifoliaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Aquifoliales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5414222
+  },
+  "Juglans regia": {
+    "class": "Magnoliopsida",
+    "family": "Juglandaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fagales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3054368
+  },
+  "Juniperus communis": {
+    "class": "Pinopsida",
+    "family": "Cupressaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2684709
+  },
+  "Juniperus oxycedrus": {
+    "class": "Pinopsida",
+    "family": "Cupressaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2684451
+  },
+  "Juniperus thurifera": {
+    "class": "Pinopsida",
+    "family": "Cupressaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2684528
+  },
+  "Larix decidua": {
+    "class": "Pinopsida",
+    "family": "Pinaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2686212
+  },
+  "Laurus nobilis": {
+    "class": "Magnoliopsida",
+    "family": "Lauraceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Laurales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3034015
+  },
+  "Malus domestica": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3001244
+  },
+  "Malus sylvestris": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3001509
+  },
+  "Melia azedarach": {
+    "class": "Magnoliopsida",
+    "family": "Meliaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Sapindales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5914287
+  },
+  "Mespilus germanica": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3031774
+  },
+  "Olea europaea": {
+    "class": "Magnoliopsida",
+    "family": "Oleaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Lamiales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5415040
+  },
+  "Ostrya carpinifolia": {
+    "class": "Magnoliopsida",
+    "family": "Betulaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fagales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5332305
+  },
+  "Paulownia tomentosa": {
+    "class": "Magnoliopsida",
+    "family": "Paulowniaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Lamiales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3170823
+  },
+  "Picea abies": {
+    "class": "Pinopsida",
+    "family": "Pinaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5284884
+  },
+  "Picea pungens": {
+    "class": "Pinopsida",
+    "family": "Pinaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5284871
+  },
+  "Pinus cembra": {
+    "class": "Pinopsida",
+    "family": "Pinaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5285134
+  },
+  "Pinus halepensis": {
+    "class": "Pinopsida",
+    "family": "Pinaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5285604
+  },
+  "Pinus nigra": {
+    "class": "Pinopsida",
+    "family": "Pinaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5284809
+  },
+  "Pinus pinaster": {
+    "class": "Pinopsida",
+    "family": "Pinaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5285565
+  },
+  "Pinus pinea": {
+    "class": "Pinopsida",
+    "family": "Pinaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5285165
+  },
+  "Pinus sylvestris": {
+    "class": "Pinopsida",
+    "family": "Pinaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5285637
+  },
+  "Pinus uncinata": {
+    "class": "Pinopsida",
+    "family": "Pinaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5285332
+  },
+  "Pistacia terebinthus": {
+    "class": "Magnoliopsida",
+    "family": "Anacardiaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Sapindales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3190580
+  },
+  "Platanus hispanica": {
+    "class": "Magnoliopsida",
+    "family": "Platanaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Proteales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 7400250
+  },
+  "Populus alba": {
+    "class": "Magnoliopsida",
+    "family": "Salicaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Malpighiales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3040233
+  },
+  "Populus nigra": {
+    "class": "Magnoliopsida",
+    "family": "Salicaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Malpighiales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3040227
+  },
+  "Populus tremula": {
+    "class": "Magnoliopsida",
+    "family": "Salicaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Malpighiales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3040249
+  },
+  "Prunus amygdalus": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3020980
+  },
+  "Prunus armeniaca": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 7818643
+  },
+  "Prunus avium": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3020791
+  },
+  "Prunus cerasus": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3021922
+  },
+  "Prunus domestica": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 7931731
+  },
+  "Prunus mahaleb": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3022789
+  },
+  "Prunus padus": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3021037
+  },
+  "Prunus persica": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 8149923
+  },
+  "Prunus serotina": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3021850
+  },
+  "Pseudotsuga menziesii": {
+    "class": "Pinopsida",
+    "family": "Pinaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2685796
+  },
+  "Punica granatum": {
+    "class": "Magnoliopsida",
+    "family": "Lythraceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Myrtales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5420901
+  },
+  "Pyrus communis": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5362573
+  },
+  "Pyrus pyraster": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5362445
+  },
+  "Quercus coccifera": {
+    "class": "Magnoliopsida",
+    "family": "Fagaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fagales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2879175
+  },
+  "Quercus ilex": {
+    "class": "Magnoliopsida",
+    "family": "Fagaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fagales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2879098
+  },
+  "Quercus petraea": {
+    "class": "Magnoliopsida",
+    "family": "Fagaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fagales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2880130
+  },
+  "Quercus pubescens": {
+    "class": "Magnoliopsida",
+    "family": "Fagaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fagales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2881283
+  },
+  "Quercus robur": {
+    "class": "Magnoliopsida",
+    "family": "Fagaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fagales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2878688
+  },
+  "Quercus rubra": {
+    "class": "Magnoliopsida",
+    "family": "Fagaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fagales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2880539
+  },
+  "Quercus suber": {
+    "class": "Magnoliopsida",
+    "family": "Fagaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fagales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2879411
+  },
+  "Rhaphiolepis bibas": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 10786206
+  },
+  "Robinia pseudoacacia": {
+    "class": "Magnoliopsida",
+    "family": "Fabaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Fabales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5352251
+  },
+  "Salix caprea": {
+    "class": "Magnoliopsida",
+    "family": "Salicaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Malpighiales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5372952
+  },
+  "Salix fragilis": {
+    "class": "Magnoliopsida",
+    "family": "Salicaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Malpighiales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5372829
+  },
+  "Sequoiadendron giganteum": {
+    "class": "Pinopsida",
+    "family": "Cupressaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2684120
+  },
+  "Sorbus aucuparia": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3012167
+  },
+  "Taxodium distichum": {
+    "class": "Pinopsida",
+    "family": "Cupressaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 2684191
+  },
+  "Taxus baccata": {
+    "class": "Pinopsida",
+    "family": "Taxaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Pinales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5284517
+  },
+  "Tilia cordata": {
+    "class": "Magnoliopsida",
+    "family": "Malvaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Malvales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3152047
+  },
+  "Tilia platyphyllos": {
+    "class": "Magnoliopsida",
+    "family": "Malvaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Malvales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 3152048
+  },
+  "Torminalis glaberrima": {
+    "class": "Magnoliopsida",
+    "family": "Rosaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 9410160
+  },
+  "Ulmus glabra": {
+    "class": "Magnoliopsida",
+    "family": "Ulmaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5361866
+  },
+  "Ulmus laevis": {
+    "class": "Magnoliopsida",
+    "family": "Ulmaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 7303616
+  },
+  "Ulmus minor": {
+    "class": "Magnoliopsida",
+    "family": "Ulmaceae",
+    "kingdom": "Plantae",
+    "matchType": "EXACT",
+    "order": "Rosales",
+    "phylum": "Tracheophyta",
+    "rank": "SPECIES",
+    "usageKey": 5361865
+  }
+}

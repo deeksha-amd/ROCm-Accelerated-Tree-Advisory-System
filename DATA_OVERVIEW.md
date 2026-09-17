@@ -3,9 +3,11 @@
 What each dataset is, where it came from, and what we assume when using it.
 Copy-paste run commands are in `README.md`.
 
-**Layout:** USA 1 km scripts live at the repo root. The global 18 km POC lives
-under `poc/`. Rasters, GBIF, models, and downloaders live under `data/`
-(`data/scripts/` for downloads).
+**Layout:** USA 1 km XGBoost scripts live at the repo root. The global 18 km
+XGBoost POC lives under `poc/`. Rasters, GBIF, models, and XGBoost downloaders
+live under `data/` (`data/scripts/` for downloads). The deep-learning SDM
+pipeline lives under `deep_learning_sdm/` and uses `country_data/` at the repo
+root (manifests committed; GeoTIFFs gitignored).
 
 **Shared grid:** every raster uses the same 2160 x 1080 global grid. One cell is
 1/6 degree, about **18.5 km** across. ~808,000 of 2.3M cells are land. So cell
@@ -31,6 +33,8 @@ under `poc/`. Rasters, GBIF, models, and downloaders live under `data/`
 | `data/models/` | Global 10-arc-minute XGBoost JSON | this repo | — |
 | `data/models_usa_30s/` | CONUS 1 km XGBoost JSON | this repo | — |
 | `data/validation/` | Evidence for why these sources were picked. **Not a model input** | various | — |
+| `country_data/{FRA,ESP,USA}/` | 1 km country stacks for the deep-learning pipeline (manifests in git) | WorldClim / SoilGrids / GEDTM30 | mixed |
+| `deep_learning_sdm/` | Deep-learning SDM train + advisory (separate from XGBoost) | this repo | — |
 
 ---
 
@@ -99,22 +103,53 @@ or `cfvo`.
 
 ## Satellite — filters, not predictors
 
-**Do not train on the vegetation layers.** NDVI and tree cover measure where
-trees *already* grow, so predicting where trees *can* grow from them is circular.
-Measured: vegetation layers alone — no climate, soil or terrain — reach
-cross-validated AUC **0.791** vs **0.711** for the entire genuine environmental
-set. But that +0.080 lead falls to **+0.001 on cleared farmland**, which is the
-land we actually advise on. Tree cover also separates **90% of 40 species in the
-same direction** (temperature: 52%) — it answers "are there trees here?", not
-"what niche is this?".
+**Do not train on the satellite layers** — but the reason is not the one first
+recorded here. The original global finding (vegetation-only AUC 0.791 vs 0.711,
+collapsing to +0.001 on cleared farmland; tree cover separating 90% of species in
+one direction) **did not reproduce** on the France 1 km data, which is finer and
+better sampled. Re-measured there, across 9 feature sets and 5 tree-cover strata:
 
-The POC filter stack is built by `python data/scripts/satellite_rasters.py`: ESA WorldCover
-10 m class maps, streamed as COG overviews and averaged onto the shared 10-arc-
-minute grid. `poc/recommend.py` (and USA recommend, for the same 18 km filters at
-a pin) reads those GeoTIFFs **after** scoring, never as `x`.
+- Satellite-only scores **0.706 vs 0.742** for the environmental set — 0.036
+  *worse*, not 0.080 better.
+- Adding satellite gains **+0.012**, and that gain **does not collapse** on
+  treeless land (+0.015) or cropland (+0.011).
+- Tree-cover direction agreement is **60.9%** vs **78.3%** for temperature — the
+  global ordering reversed.
 
+The exclusion still stands, because the gain is **not ecology**. Two thirds of it
+is one layer, built-up fraction, absorbing residual survey bias: presence cells
+average **9.9% built-up vs 2.8%** for background, and **21.9% vs 5.3%** on
+treeless land. Its value is +0.016 on treeless land and **−0.001 in forest** —
+the inverse of an ecological signal. The remainder is land *use*, which encodes
+the advisory's own decision variable: down-ranking a field because trees are not
+recorded in fields answers "is this land in use?", not "will a tree grow here?".
+
+- **Do not use as predictors:** all of it. Tree cover and NDVI are worth only
+  +0.007 and are nearly null in France (27.0% vs 25.3% presence/background).
+  `soilmoisture_*` — previously called the one defensible layer — is worth
+  **exactly +0.000** across every stratum.
 - **Filters only:** built-up, water, snow/ice, land and cropland fractions, plus
   `planting_exclusion_mask_10m.tif`. Apply to model **output**, never input.
+  46.6% of land carries no exclusion. Built-up is the strongest single
+  contributor and the least defensible — it is already used correctly, as a hard
+  output exclusion.
+
+**Caveat on the re-measurement:** the background is effort-weighted only at
+18.5 km, which is the exact channel built-up fraction exploits at 1 km. A 1 km
+effort surface would likely shrink the satellite gain further.
+
+**Coverage:** land cover **99.93%** of GBIF points (matches climate); NDVI
+**93.4%** (gaps are desert and ice, masked at source); soil moisture **79.2%**.
+
+**Known limit:** tree fraction understates open woodland — Iberia reads 8% vs
+22% in 10 m data — but agrees within a few points in closed tropical forest.
+
+For the XGBoost POC, the filter stack is built by
+`python data/scripts/satellite_rasters.py`: ESA WorldCover 10 m class maps,
+streamed as COG overviews and averaged onto the shared 10-arc-minute grid.
+`poc/recommend.py` (and USA recommend, for the same 18 km filters at a pin)
+reads those GeoTIFFs **after** scoring, never as `x`.
+
 - **Do not use as XGBoost features:** tree / broadleaf / needleleaf / shrub /
   grass fractions, and any NDVI layer.
 - **Optional extra predictor (retrain required):** `soilmoisture_mean` /

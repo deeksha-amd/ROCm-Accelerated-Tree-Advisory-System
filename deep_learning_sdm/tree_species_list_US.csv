@@ -1,0 +1,325 @@
+species,common_name,use,region,notes
+# Curated plantable trees for the contiguous United States (lower 48).
+# Same five columns and same contract as tree_species_list.csv: `species` is
+# the only column the pipeline reads, the rest are for humans, and a row is a
+# product decision about what the advisory may recommend.
+#
+# INCLUSION RULE. A name is on this list when it is a TREE (single-stemmed
+# woody plant reaching roughly 6 m or more at maturity) AND at least one of:
+#   1. it is a dominant or co-dominant native canopy tree of one of the eight
+#      major forest regions of the lower 48 -- northern hardwood, central
+#      broadleaf, southeastern coastal plain, bottomland hardwood, boreal
+#      transition, Rocky Mountain montane, Pacific coastal, and the oak
+#      woodland / riparian systems of the arid interior and California;
+#   2. it is a standard street, park, campus or yard tree offered by
+#      mainstream US nurseries, native or not, including the naturalised
+#      Eurasian and East Asian trees that dominate US urban canopy;
+#   3. it is a commercially grown orchard, nut or plantation tree of the
+#      lower 48.
+#
+# DELIBERATE EXCLUSIONS, for the same reason the France list excludes them:
+#   - shrubs and understorey woody plants, however well recorded. GBIF's
+#     most-recorded US woody plants include Toxicodendron radicans, Rubus and
+#     Vaccinium; nobody asks a planting advisory whether to plant poison ivy.
+#   - Alaskan, Hawaiian and Puerto Rican endemics -- the modelling extent is
+#     the lower 48, so a tree that only grows outside it cannot be recommended.
+#   - species known in the US only from botanic gardens and arboreta.
+#
+# Naturalised and invasive trees (Ailanthus, Melia, Triadica, Elaeagnus) are
+# INCLUDED on purpose: the model has to know where they grow to be able to
+# recommend against them, and they are a large part of the eastern US record.
+#
+# ── oaks: the single most important US genus for this advisory ──
+Quercus alba,White oak,native_woodland,north_america,
+Quercus rubra,Northern red oak,street_park,north_america,
+Quercus velutina,Black oak,native_woodland,north_america,
+Quercus coccinea,Scarlet oak,street_park,north_america,
+Quercus palustris,Pin oak,street_park,north_america,
+Quercus phellos,Willow oak,street_park,north_america,
+Quercus macrocarpa,Bur oak,street_park,north_america,
+Quercus bicolor,Swamp white oak,street_park,north_america,
+Quercus stellata,Post oak,native_woodland,north_america,
+Quercus marilandica,Blackjack oak,native_woodland,north_america,
+Quercus falcata,Southern red oak,native_woodland,north_america,
+Quercus nigra,Water oak,native_woodland,north_america,
+Quercus laurifolia,Laurel oak,street_park,north_america,
+Quercus virginiana,Southern live oak,street_park,north_america,
+Quercus shumardii,Shumard oak,street_park,north_america,
+Quercus michauxii,Swamp chestnut oak,native_woodland,north_america,
+Quercus montana,Chestnut oak,native_woodland,north_america,
+Quercus muehlenbergii,Chinkapin oak,native_woodland,north_america,
+Quercus lyrata,Overcup oak,native_woodland,north_america,
+Quercus texana,Nuttall oak,street_park,north_america,
+Quercus imbricaria,Shingle oak,native_woodland,north_america,
+Quercus ellipsoidalis,Northern pin oak,native_woodland,north_america,
+Quercus gambelii,Gambel oak,native_woodland,north_america,
+Quercus agrifolia,Coast live oak,native_woodland,north_america,
+Quercus lobata,Valley oak,native_woodland,north_america,
+Quercus douglasii,Blue oak,native_woodland,north_america,
+Quercus kelloggii,California black oak,native_woodland,north_america,
+Quercus chrysolepis,Canyon live oak,native_woodland,north_america,
+Quercus wislizeni,Interior live oak,native_woodland,north_america,
+Quercus garryana,Oregon white oak,native_woodland,north_america,
+Quercus laevis,Turkey oak,native_woodland,north_america,
+Quercus incana,Bluejack oak,native_woodland,north_america,
+Quercus acutissima,Sawtooth oak,street_park,asia,naturalised in the US
+Quercus robur,English oak,street_park,europe,planted in the US
+# ── maples ──
+Acer saccharum,Sugar maple,street_park,north_america,
+Acer rubrum,Red maple,street_park,north_america,
+Acer saccharinum,Silver maple,street_park,north_america,
+Acer negundo,Box elder,native_woodland,north_america,
+Acer nigrum,Black maple,native_woodland,north_america,
+Acer macrophyllum,Bigleaf maple,native_woodland,north_america,
+Acer circinatum,Vine maple,native_woodland,north_america,
+Acer pensylvanicum,Striped maple,native_woodland,north_america,
+Acer spicatum,Mountain maple,native_woodland,north_america,
+Acer glabrum,Rocky Mountain maple,native_woodland,north_america,
+Acer platanoides,Norway maple,street_park,europe,naturalised in the US
+Acer palmatum,Japanese maple,ornamental,asia,
+Acer griseum,Paperbark maple,ornamental,asia,
+Acer campestre,Field maple,street_park,europe,
+Acer buergerianum,Trident maple,street_park,asia,
+# ── pines ──
+Pinus strobus,Eastern white pine,timber,north_america,
+Pinus taeda,Loblolly pine,timber,north_america,
+Pinus echinata,Shortleaf pine,timber,north_america,
+Pinus palustris,Longleaf pine,timber,north_america,
+Pinus elliottii,Slash pine,timber,north_america,
+Pinus rigida,Pitch pine,native_woodland,north_america,
+Pinus virginiana,Virginia pine,native_woodland,north_america,
+Pinus banksiana,Jack pine,timber,north_america,
+Pinus resinosa,Red pine,timber,north_america,
+Pinus ponderosa,Ponderosa pine,timber,north_america,
+Pinus contorta,Lodgepole pine,timber,north_america,
+Pinus flexilis,Limber pine,native_woodland,north_america,
+Pinus edulis,Pinyon pine,native_woodland,north_america,
+Pinus monophylla,Singleleaf pinyon,native_woodland,north_america,
+Pinus lambertiana,Sugar pine,timber,north_america,
+Pinus jeffreyi,Jeffrey pine,timber,north_america,
+Pinus sabiniana,Gray pine,native_woodland,north_america,
+Pinus coulteri,Coulter pine,native_woodland,north_america,
+Pinus radiata,Monterey pine,timber,north_america,
+Pinus albicaulis,Whitebark pine,native_woodland,north_america,
+Pinus aristata,Bristlecone pine,native_woodland,north_america,
+Pinus glabra,Spruce pine,native_woodland,north_america,
+Pinus serotina,Pond pine,native_woodland,north_america,
+Pinus clausa,Sand pine,native_woodland,north_america,
+Pinus nigra,Austrian pine,street_park,europe,widely planted in the US
+Pinus sylvestris,Scots pine,street_park,europe,naturalised in the US
+Pinus thunbergii,Japanese black pine,street_park,asia,
+Pinus mugo,Mountain pine,ornamental,europe,
+# ── other conifers ──
+Pseudotsuga menziesii,Douglas fir,timber,north_america,
+Tsuga canadensis,Eastern hemlock,native_woodland,north_america,
+Tsuga heterophylla,Western hemlock,timber,north_america,
+Tsuga mertensiana,Mountain hemlock,native_woodland,north_america,
+Abies balsamea,Balsam fir,timber,north_america,
+Abies fraseri,Fraser fir,ornamental,north_america,christmas tree
+Abies concolor,White fir,street_park,north_america,
+Abies grandis,Grand fir,timber,north_america,
+Abies procera,Noble fir,timber,north_america,
+Abies magnifica,Red fir,timber,north_america,
+Abies lasiocarpa,Subalpine fir,native_woodland,north_america,
+Picea glauca,White spruce,timber,north_america,
+Picea mariana,Black spruce,timber,north_america,
+Picea rubens,Red spruce,timber,north_america,
+Picea pungens,Blue spruce,street_park,north_america,
+Picea engelmannii,Engelmann spruce,timber,north_america,
+Picea sitchensis,Sitka spruce,timber,north_america,
+Picea abies,Norway spruce,timber,europe,widely planted in the US
+Larix laricina,Tamarack,native_woodland,north_america,
+Larix occidentalis,Western larch,timber,north_america,
+Thuja occidentalis,Northern white cedar,street_park,north_america,
+Thuja plicata,Western red cedar,timber,north_america,
+Juniperus virginiana,Eastern red cedar,native_woodland,north_america,
+Juniperus scopulorum,Rocky Mountain juniper,native_woodland,north_america,
+Juniperus osteosperma,Utah juniper,native_woodland,north_america,
+Juniperus monosperma,One-seed juniper,native_woodland,north_america,
+Chamaecyparis thyoides,Atlantic white cedar,native_woodland,north_america,
+Chamaecyparis lawsoniana,Port Orford cedar,timber,north_america,
+Calocedrus decurrens,Incense cedar,timber,north_america,
+Sequoia sempervirens,Coast redwood,timber,north_america,
+Sequoiadendron giganteum,Giant sequoia,ornamental,north_america,
+Taxodium distichum,Bald cypress,street_park,north_america,
+Taxodium ascendens,Pond cypress,native_woodland,north_america,
+Torreya californica,California nutmeg,native_woodland,north_america,
+Cryptomeria japonica,Japanese cedar,ornamental,asia,
+Metasequoia glyptostroboides,Dawn redwood,street_park,asia,
+Ginkgo biloba,Ginkgo,street_park,asia,
+Cupressus macrocarpa,Monterey cypress,street_park,north_america,
+Hesperocyparis arizonica,Arizona cypress,street_park,north_america,
+# ── hickories, walnuts and nuts ──
+Carya ovata,Shagbark hickory,fruit_nut,north_america,
+Carya laciniosa,Shellbark hickory,fruit_nut,north_america,
+Carya cordiformis,Bitternut hickory,native_woodland,north_america,
+Carya glabra,Pignut hickory,native_woodland,north_america,
+Carya tomentosa,Mockernut hickory,native_woodland,north_america,
+Carya illinoinensis,Pecan,fruit_nut,north_america,
+Carya aquatica,Water hickory,native_woodland,north_america,
+Juglans nigra,Black walnut,timber,north_america,
+Juglans cinerea,Butternut,fruit_nut,north_america,
+Juglans regia,English walnut,fruit_nut,asia,orchard crop in California
+Juglans californica,California walnut,native_woodland,north_america,
+Castanea dentata,American chestnut,native_woodland,north_america,
+Castanea mollissima,Chinese chestnut,fruit_nut,asia,
+Corylus americana,American hazelnut,fruit_nut,north_america,
+Corylus cornuta,Beaked hazelnut,native_woodland,north_america,
+Prunus amygdalus,Almond,fruit_nut,asia,orchard crop in California; GBIF moved Prunus dulcis here
+Pistacia vera,Pistachio,fruit_nut,asia,orchard crop in California
+# ── other eastern hardwoods ──
+Fagus grandifolia,American beech,native_woodland,north_america,
+Fagus sylvatica,European beech,street_park,europe,
+Betula alleghaniensis,Yellow birch,timber,north_america,
+Betula papyrifera,Paper birch,street_park,north_america,
+Betula lenta,Sweet birch,native_woodland,north_america,
+Betula nigra,River birch,street_park,north_america,
+Betula populifolia,Gray birch,native_woodland,north_america,
+Betula pendula,Silver birch,street_park,europe,
+Ostrya virginiana,Eastern hophornbeam,native_woodland,north_america,
+Carpinus caroliniana,American hornbeam,street_park,north_america,
+Carpinus betulus,European hornbeam,street_park,europe,
+Fraxinus americana,White ash,timber,north_america,
+Fraxinus pennsylvanica,Green ash,street_park,north_america,
+Fraxinus nigra,Black ash,native_woodland,north_america,
+Fraxinus quadrangulata,Blue ash,native_woodland,north_america,
+Fraxinus latifolia,Oregon ash,native_woodland,north_america,
+Fraxinus velutina,Velvet ash,street_park,north_america,
+Ulmus americana,American elm,street_park,north_america,
+Ulmus rubra,Slippery elm,native_woodland,north_america,
+Ulmus alata,Winged elm,native_woodland,north_america,
+Ulmus crassifolia,Cedar elm,street_park,north_america,
+Ulmus parvifolia,Chinese elm,street_park,asia,
+Ulmus pumila,Siberian elm,street_park,asia,naturalised in the US
+Celtis occidentalis,Common hackberry,street_park,north_america,
+Celtis laevigata,Sugarberry,street_park,north_america,
+Tilia americana,American basswood,street_park,north_america,
+Tilia cordata,Littleleaf linden,street_park,europe,
+Tilia tomentosa,Silver linden,street_park,europe,
+Platanus occidentalis,American sycamore,street_park,north_america,
+Platanus racemosa,California sycamore,native_woodland,north_america,
+Platanus x acerifolia,London plane,street_park,europe,
+Liriodendron tulipifera,Tulip tree,timber,north_america,
+Liquidambar styraciflua,Sweetgum,street_park,north_america,
+Nyssa sylvatica,Black tupelo,street_park,north_america,
+Nyssa aquatica,Water tupelo,native_woodland,north_america,
+Nyssa biflora,Swamp tupelo,native_woodland,north_america,
+Magnolia grandiflora,Southern magnolia,street_park,north_america,
+Magnolia virginiana,Sweetbay magnolia,street_park,north_america,
+Magnolia acuminata,Cucumber tree,native_woodland,north_america,
+Magnolia macrophylla,Bigleaf magnolia,ornamental,north_america,
+Magnolia tripetala,Umbrella magnolia,ornamental,north_america,
+Magnolia stellata,Star magnolia,ornamental,asia,
+Magnolia x soulangeana,Saucer magnolia,ornamental,asia,
+Cornus florida,Flowering dogwood,ornamental,north_america,
+Cornus nuttallii,Pacific dogwood,ornamental,north_america,
+Cornus kousa,Kousa dogwood,ornamental,asia,
+Cornus alternifolia,Pagoda dogwood,ornamental,north_america,
+Cercis canadensis,Eastern redbud,ornamental,north_america,
+Cercis occidentalis,Western redbud,ornamental,north_america,
+Amelanchier arborea,Downy serviceberry,ornamental,north_america,
+Amelanchier laevis,Allegheny serviceberry,ornamental,north_america,
+Amelanchier canadensis,Canadian serviceberry,ornamental,north_america,
+Oxydendrum arboreum,Sourwood,ornamental,north_america,
+Halesia carolina,Carolina silverbell,ornamental,north_america,
+Chionanthus virginicus,White fringetree,ornamental,north_america,
+Asimina triloba,Pawpaw,fruit_nut,north_america,
+Diospyros virginiana,American persimmon,fruit_nut,north_america,
+Sassafras albidum,Sassafras,native_woodland,north_america,
+Aesculus glabra,Ohio buckeye,street_park,north_america,
+Aesculus flava,Yellow buckeye,native_woodland,north_america,
+Aesculus californica,California buckeye,native_woodland,north_america,
+Aesculus hippocastanum,Horse chestnut,street_park,europe,
+Robinia pseudoacacia,Black locust,agroforestry,north_america,
+Gleditsia triacanthos,Honey locust,street_park,north_america,
+Gymnocladus dioicus,Kentucky coffeetree,street_park,north_america,
+Cladrastis kentukea,American yellowwood,street_park,north_america,
+Maclura pomifera,Osage orange,agroforestry,north_america,
+Morus rubra,Red mulberry,fruit_nut,north_america,
+Morus alba,White mulberry,fruit_nut,asia,naturalised in the US
+Catalpa speciosa,Northern catalpa,street_park,north_america,
+Catalpa bignonioides,Southern catalpa,street_park,north_america,
+Paulownia tomentosa,Princess tree,ornamental,asia,naturalised in the US
+Ailanthus altissima,Tree of heaven,street_park,asia,invasive in the US
+Melia azedarach,Chinaberry,street_park,asia,naturalised in the US
+Triadica sebifera,Chinese tallow,street_park,asia,invasive in the US
+Albizia julibrissin,Mimosa,ornamental,asia,naturalised in the US
+Koelreuteria paniculata,Golden rain tree,street_park,asia,
+Zelkova serrata,Japanese zelkova,street_park,asia,
+Styphnolobium japonicum,Japanese pagoda tree,street_park,asia,
+Pyrus calleryana,Callery pear,street_park,asia,invasive in the US
+Elaeagnus angustifolia,Russian olive,street_park,asia,invasive in the US
+Tamarix ramosissima,Saltcedar,ornamental,asia,invasive in the US
+# ── poplars, willows and riparian ──
+Populus tremuloides,Quaking aspen,native_woodland,north_america,
+Populus grandidentata,Bigtooth aspen,native_woodland,north_america,
+Populus deltoides,Eastern cottonwood,street_park,north_america,
+Populus fremontii,Fremont cottonwood,native_woodland,north_america,
+Populus balsamifera,Balsam poplar,native_woodland,north_america,
+Populus trichocarpa,Black cottonwood,timber,north_america,
+Populus alba,White poplar,street_park,europe,naturalised in the US
+Populus nigra,Black poplar,street_park,europe,
+Salix nigra,Black willow,native_woodland,north_america,
+Salix amygdaloides,Peachleaf willow,native_woodland,north_america,
+Salix babylonica,Weeping willow,street_park,asia,
+Salix alba,White willow,street_park,europe,
+Alnus rubra,Red alder,timber,north_america,
+Alnus rhombifolia,White alder,native_woodland,north_america,
+Alnus incana,Gray alder,native_woodland,north_america,
+Alnus serrulata,Hazel alder,native_woodland,north_america,
+Betula occidentalis,Water birch,native_woodland,north_america,
+Platanus wrightii,Arizona sycamore,native_woodland,north_america,
+# ── western, southwestern and subtropical ──
+Arbutus menziesii,Pacific madrone,native_woodland,north_america,
+Umbellularia californica,California bay,native_woodland,north_america,
+Lithocarpus densiflorus,Tanoak,native_woodland,north_america,
+Prosopis glandulosa,Honey mesquite,agroforestry,north_america,
+Prosopis velutina,Velvet mesquite,agroforestry,north_america,
+Parkinsonia florida,Blue palo verde,street_park,north_america,
+Parkinsonia microphylla,Foothill palo verde,native_woodland,north_america,
+Olneya tesota,Ironwood,native_woodland,north_america,
+Carnegiea gigantea,Saguaro,ornamental,north_america,columnar cactus tree form
+Yucca brevifolia,Joshua tree,ornamental,north_america,
+Washingtonia filifera,California fan palm,street_park,north_america,
+Sabal palmetto,Cabbage palmetto,street_park,north_america,
+Persea borbonia,Redbay,native_woodland,north_america,
+Ilex opaca,American holly,street_park,north_america,
+Gordonia lasianthus,Loblolly bay,native_woodland,north_america,
+Eucalyptus globulus,Tasmanian blue gum,timber,oceania,naturalised in California
+Eucalyptus camaldulensis,River red gum,street_park,oceania,planted in the US
+Schinus molle,Peruvian pepper tree,street_park,south_america,planted in California
+Jacaranda mimosifolia,Jacaranda,street_park,south_america,planted in the US south
+Grevillea robusta,Silky oak,street_park,oceania,planted in California
+Ficus macrophylla,Moreton Bay fig,street_park,oceania,planted in California
+Cinnamomum camphora,Camphor tree,street_park,asia,naturalised in the US south
+Ligustrum lucidum,Glossy privet,street_park,asia,naturalised in the US south
+# ── orchard and fruit ──
+Malus domestica,Apple,fruit_nut,asia,
+Malus coronaria,Sweet crabapple,ornamental,north_america,
+Malus fusca,Pacific crabapple,native_woodland,north_america,
+Pyrus communis,European pear,fruit_nut,europe,
+Prunus serotina,Black cherry,timber,north_america,
+Prunus virginiana,Chokecherry,native_woodland,north_america,
+Prunus pensylvanica,Pin cherry,native_woodland,north_america,
+Prunus americana,American plum,fruit_nut,north_america,
+Prunus avium,Sweet cherry,fruit_nut,europe,orchard crop
+Prunus persica,Peach,fruit_nut,asia,orchard crop
+Prunus armeniaca,Apricot,fruit_nut,asia,orchard crop
+Prunus domestica,European plum,fruit_nut,europe,orchard crop
+Prunus serrulata,Japanese cherry,ornamental,asia,
+Prunus cerasifera,Cherry plum,street_park,asia,
+Prunus caroliniana,Carolina laurelcherry,street_park,north_america,
+Citrus x sinensis,Sweet orange,fruit_nut,asia,orchard crop in Florida and California
+Citrus x limon,Lemon,fruit_nut,asia,orchard crop
+Olea europaea,Olive,fruit_nut,europe,orchard crop in California
+Ficus carica,Fig,fruit_nut,asia,
+Punica granatum,Pomegranate,fruit_nut,asia,
+Persea americana,Avocado,fruit_nut,south_america,orchard crop in California
+Crataegus crus-galli,Cockspur hawthorn,ornamental,north_america,
+Crataegus phaenopyrum,Washington hawthorn,street_park,north_america,
+Sorbus americana,American mountain ash,ornamental,north_america,
+Sorbus aucuparia,Rowan,street_park,europe,
+Cotinus obovatus,American smoketree,ornamental,north_america,
+Chilopsis linearis,Desert willow,street_park,north_america,
+Lagerstroemia indica,Crape myrtle,street_park,asia,
+Vitex agnus-castus,Chaste tree,ornamental,europe,

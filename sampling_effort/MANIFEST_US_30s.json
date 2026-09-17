@@ -1,0 +1,41 @@
+{
+  "country": "US",
+  "country_bounds": [
+    24.5,
+    49.4,
+    -125.0,
+    -66.9
+  ],
+  "resolution": "30s",
+  "target_grid": {
+    "width": 7020,
+    "height": 3060,
+    "crs": "EPSG:4326",
+    "transform": [
+      0.008333333333333333,
+      0.0,
+      -125.0,
+      0.0,
+      -0.008333333333333333,
+      49.5
+    ],
+    "template": "country_data/USA/country_grid.json"
+  },
+  "effort_raster": "sampling_effort/plant_effort_US_30s.tif",
+  "smoothed_raster": "sampling_effort/plant_effort_US_30s_smoothed.tif",
+  "smooth_km": 1.0,
+  "smooth_passes": 3,
+  "country_mask": "Natural Earth polygon",
+  "target_group": "Tracheophyta",
+  "taxon_key": 7707728,
+  "tile_zoom": 8,
+  "tile_pixels_read": 8631651,
+  "records_total": 38671187.0,
+  "cells_surveyed": 3341661,
+  "verification_ratios": [],
+  "occurrence_filters": {
+    "hasCoordinate": "true",
+    "hasGeospatialIssue": "false",
+    "occurrenceStatus": "PRESENT"
+  }
+}
