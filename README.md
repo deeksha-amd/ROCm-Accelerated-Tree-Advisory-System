@@ -1,10 +1,18 @@
 # ROCm tree advisory (USA 1 km)
 
-One XGBoost model per tree species. A pin only looks up the raster cell;
-latitude and longitude are **not** features. The score `p` is **record-likeness**:
-how much that 1 km cell looks like GBIF records of the species *versus other
-listed trees* (target-group background). It is not a planting permit, survival
-odds, or a backyard shade model.
+Two SDMs over the same 1 km data, picked with `--model`:
+
+| `--model` | What it is | Weights |
+|---|---|---|
+| `xgboost` (default) | one gradient-boosted booster per species | `data/models_usa_30s/*.json` |
+| `deepmaxent` | one [DeepMaxent](https://github.com/RYCKEWAERT/deepmaxent) network with an output per species | `data/models_deepmaxent_usa_30s/*.pt` |
+
+A pin only looks up the raster cell; latitude and longitude are **not**
+features. The score `p` is **record-likeness**: how much that 1 km cell looks
+like GBIF records of the species *versus other listed trees* (target-group
+background). It is not a planting permit, survival odds, or a backyard shade
+model. Both models are trained on the same occurrences and the same 61 layers,
+so `p` reads on the same scale either way.
 
 The **main path is the contiguous USA at 1 km** (30 arcsec). An older global
 **18 km** demo lives in `poc/`. A separate **deep-learning SDM** pipeline lives
@@ -29,6 +37,7 @@ is **gitignored** (GeoTIFFs are huge; JSON boosters are many):
 |---|---|---|
 | 1 km climate / soil / terrain | `data/country_data/USA/{climate,soil,topography}_30s/` | copy from the training machine |
 | Saved boosters | `data/models_usa_30s/*.json` | copy, or train (below) |
+| DeepMaxent checkpoint | `data/models_deepmaxent_usa_30s/deepmaxent_usa_30s.pt` | copy, or train (below); only for `--model deepmaxent` |
 | Optional 2050 BIO | `data/country_data/USA/climate_future_2050_30s/` | `python future_climate_usa_30s.py` |
 | Optional 1 km satellite filters | `data/country_data/USA/satellite_30s/` | `python data/scripts/satellite_rasters_usa_30s.py` |
 
@@ -41,9 +50,12 @@ Do **not** point USA recommend at `data/satellite/` (the 18 km global filters).
 
 | Path | Role |
 |---|---|
-| `xgboost_training_usa_30s.py` | Train USA 1 km models → `data/models_usa_30s/` |
+| `xgboost_training_usa_30s.py` | Train USA 1 km boosters → `data/models_usa_30s/` |
+| `deepmaxent_training_usa_30s.py` | Train the USA 1 km Deep SDM → `data/models_deepmaxent_usa_30s/` |
+| `deepmaxent/` | DeepMaxent network + losses, vendored verbatim from upstream |
+| `deepmaxent_sdm.py` | Checkpoint format and inference for the Deep SDM |
 | `clean_species_usa_30s.py` | Clean + thin US GBIF onto the 1 km grid |
-| `recommend_usa_30s.py` | Pin → top 5 plantable trees (today + 2050) |
+| `recommend_usa_30s.py` | Pin → top 5 plantable trees (today + 2050), either model |
 | `future_climate_usa_30s.py` | Build honest 1 km 2050 BIO (once) |
 | `suitability_maps_usa_30s.py` | One-species today vs 2050 record-likeness map |
 | `poc/` | Global 18 km train / recommend / oak–Seville maps |
@@ -68,6 +80,9 @@ python recommend_usa_30s.py --lat 30.2672 --lon -97.7431 --goal shade --html map
 
 # Or geocode
 python recommend_usa_30s.py --address "Austin, Texas" --goal shade --html maps/austin.html
+
+# Same pin, Deep SDM instead of the boosters
+python recommend_usa_30s.py --model deepmaxent --lat 30.2672 --lon -97.7431 --goal shade
 ```
 
 Open `maps/austin.html`. The page shows lat/lon, a 1 km cell, today vs 2050
@@ -119,6 +134,24 @@ python xgboost_training_usa_30s.py --full-list --skip-existing
 `--skip-existing` does not overwrite a saved booster. Drop it only if you intend to retrain.
 
 Needs ~6 GB RAM for the 61-layer stack. Writes `data/models_usa_30s/*.json` and `data/models_usa_30s/metrics.csv`. Does not touch `poc/` or `data/models/`.
+
+---
+
+## USA 1 km — train the Deep SDM
+
+Same cleaned occurrences, same 61 layers, same target-group background, same
+spatial-block CV gate. DeepMaxent fits every species jointly in one network, so
+this is a single run rather than one per species.
+
+```bash
+python deepmaxent_training_usa_30s.py --smoke        # wiring check, ~1 min
+python deepmaxent_training_usa_30s.py --full-list    # 5 CV folds + final fit
+```
+
+Writes `data/models_deepmaxent_usa_30s/deepmaxent_usa_30s.pt`, `metrics.csv`
+and `feature_names.txt`; leaves the boosters alone. Upstream's hyperparameters
+are the defaults — override with `--epochs`, `--batch-size`, `--learning-rate`,
+`--hidden-size`, `--hidden-nbr`, `--weight-decay`, `--loss`.
 
 ---
 
