@@ -35,15 +35,15 @@ Both gate on 5-fold spatial-block CV. Mean AUC over the species each one gates:
 | Model | Species gated | Mean AUC |
 |---|---|---|
 | XGBoost | 32 | 0.8451 |
-| DeepMaxent | 243 | 0.8534 |
+| DeepMaxent | 243 | 0.8529 |
 
-Those two numbers are **not** comparable: DeepMaxent's 0.8534 spans 243 species,
+Those two numbers are **not** comparable: DeepMaxent's 0.8529 spans 243 species,
 many of them sparse and hard, against 32 well-sampled ones for XGBoost. On the 32
-both gate, XGBoost is still ahead — **0.8451 vs 0.8235**. DeepMaxent does not win
+both gate, XGBoost is still ahead — **0.8451 vs 0.8228**. DeepMaxent does not win
 on accuracy. The protocols also differ in difficulty, unresolved so far: XGBoost
 blocks each species' own points, so held-out ground still lies inside that
 species' range, while DeepMaxent blocks all 245k CONUS cells into
-continental-scale chunks (per-fold 0.887 / 0.888 / 0.818 / 0.867 / 0.804). Part
+continental-scale chunks (per-fold 0.883 / 0.886 / 0.813 / 0.865 / 0.801). Part
 of the gap is likely protocol rather than model quality, but that is unproven.
 
 Coverage is the sharper difference. DeepMaxent gates 243 of the 285 names it
@@ -51,7 +51,7 @@ trains on against XGBoost's 32, and the default `--min-auc 0.70` leaves 236
 eligible at a pin (XGBoost: 31), so shortlists come from a much wider pool.
 Retraining cuts the other way: `--skip-existing` makes XGBoost incremental, so
 adding 20 species costs 20 species of training, while DeepMaxent fits every
-species jointly and adding one means refitting all of them (~5-6 min). XGBoost
+species jointly and adding one means refitting all of them (~2 min). XGBoost
 ships 255 JSON files, DeepMaxent one 0.8 MB checkpoint.
 
 Scoring is CPU-only by design for both. A pin costs ~2.6 s with `--model
@@ -180,11 +180,11 @@ this is a single run rather than one per species.
 
 ```bash
 python deepmaxent_training_usa_30s.py --smoke        # wiring check, ~1 min
-python deepmaxent_training_usa_30s.py --full-list    # 5 CV folds + final fit, ~5-6 min
+python deepmaxent_training_usa_30s.py --full-list    # 5 CV folds + final fit, ~2 min
 ```
 
-Needs ~6 GB RAM for the same 61-layer stack as the boosters. Of the ~5-6 min on
-one MI300X, the final fit is 68 s; the rest is the five CV folds.
+Needs ~6 GB RAM for the same 61-layer stack as the boosters. Of the ~2 min on
+one MI300X, the final fit is 18 s; the rest is the five CV folds.
 
 Writes `data/models_deepmaxent_usa_30s/deepmaxent_usa_30s.pt`, `metrics.csv`
 and `feature_names.txt`; leaves the boosters alone. The defaults reproduce the

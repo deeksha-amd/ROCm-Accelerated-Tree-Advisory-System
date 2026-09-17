@@ -60,7 +60,7 @@ _ROOT = os.path.abspath(os.path.dirname(__file__))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from repo_paths import relpath
+from repo_paths import ROOT as REPO_ROOT, relpath
 from clean_species_usa_30s import FULL_LIST, SEED_LIST, load_species_list, read_grid
 from deepmaxent_sdm import (
     CHECKPOINT_PATH,
@@ -572,6 +572,25 @@ def parse_args(argv=None):
     return args
 
 
+def warn_if_outside_repo(model_dir):
+    """metrics.csv is tracked, and relpath() writes model_path relative to the
+    repo root, so a scratch --model-dir records an escape like
+    ../../../../tmp/run/deepmaxent_usa_30s.pt. The run itself looks perfect;
+    the path resolves to nothing once the file is committed and read elsewhere,
+    and surfaces there as "no models found" with nothing pointing back here.
+    A warning, not a refusal: scratch runs to /tmp are a normal workflow."""
+    resolved = os.path.abspath(model_dir)
+    if os.path.commonpath([resolved, REPO_ROOT]) == REPO_ROOT:
+        return False
+    print(
+        f"\nWARNING: --model-dir is outside the repo ({resolved}).\n"
+        "         metrics.csv will record a model_path that does not resolve "
+        "on\n         another machine. Fine for a scratch run — do not commit "
+        "that\n         metrics.csv."
+    )
+    return True
+
+
 def main(argv=None):
     args = parse_args(argv)
     species_list_path = FULL_LIST if args.full_list else args.species_list
@@ -584,6 +603,7 @@ def main(argv=None):
     print("DeepMaxent Deep SDM — USA 1 km (30 arcsec)")
     print("=" * 64)
     print(f"Upstream model: {UPSTREAM['repo']} @ {UPSTREAM['commit'][:12]}")
+    warn_if_outside_repo(args.model_dir)
 
     grid = read_grid()
     occ = load_occurrence_table(args.occurrences, grid)
@@ -709,7 +729,10 @@ def main(argv=None):
                 else relpath(species_list_path)
             ),
             target="n_records" if args.use_record_counts else "presence",
-            seed=SEED,
+            # The effective seed, not SEED: --seed-offset shifts the final fit,
+            # so recording SEED would claim 42 for weights trained elsewhere.
+            seed=SEED + args.seed_offset,
+            seed_offset=int(args.seed_offset),
             compile_loss=bool(args.compile_loss),
         ),
     )
