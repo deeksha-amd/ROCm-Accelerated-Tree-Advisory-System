@@ -451,6 +451,19 @@ folds, and `load_saved_models` reads the same
 `species,auc,n_folds_usable,model_path,status` columns. A species that fails
 the fold gate still has an output in the network; it is simply not offered.
 
+**Weight decay is the accuracy fix; learning rate and batch size are speed.**
+Upstream's `3e-4` was set on the much smaller Elith/NCEAS benchmark and
+over-regularises 245,276 target-group cells × 255 species. At `2e-5` the gated
+mean AUC goes from 0.808 to 0.853, and from 0.793 to 0.824 on the 32 species
+XGBoost also gates, where the boosters score 0.845; every one of the five
+spatial folds improved. The optimum is sharp rather than monotonic — `3e-3`
+collapses to 0.72 and `0` is also poor, with a broad plateau between 1e-5 and
+5e-5 — so this is not "less regularisation is better". The other two changed
+defaults, `--learning-rate 1e-3` and `--batch-size 4096`, buy roughly 4x
+throughput and nothing else: a 100x learning-rate range and a 33x batch range
+each moved AUC by under 0.005. Extra capacity helped only while the weight
+decay was wrong, so the architecture stays upstream's.
+
 **Feature order is the contract.** `DeepMaxentSDM.assert_feature_order` refuses
 to score if the caller's 61 layers are not the checkpoint's 61 layers, because
 a silent reorder would score every species against the wrong rasters.

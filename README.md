@@ -149,9 +149,13 @@ python deepmaxent_training_usa_30s.py --full-list    # 5 CV folds + final fit
 ```
 
 Writes `data/models_deepmaxent_usa_30s/deepmaxent_usa_30s.pt`, `metrics.csv`
-and `feature_names.txt`; leaves the boosters alone. Upstream's hyperparameters
-are the defaults — override with `--epochs`, `--batch-size`, `--learning-rate`,
-`--hidden-size`, `--hidden-nbr`, `--weight-decay`, `--loss`.
+and `feature_names.txt`; leaves the boosters alone. The defaults reproduce the
+shipped checkpoint. Architecture and epochs are upstream's, but the optimiser
+settings are retuned: `--weight-decay 2e-5` because upstream's `3e-4` was tuned
+on a far smaller benchmark and over-regularises this dataset at a cost of ~4.5
+AUC points, and `--learning-rate 1e-3 --batch-size 4096` purely for speed, at
+the same accuracy. Override with `--epochs`, `--batch-size`,
+`--learning-rate`, `--hidden-size`, `--hidden-nbr`, `--weight-decay`, `--loss`.
 
 ---
 

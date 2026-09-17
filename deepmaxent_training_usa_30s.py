@@ -84,12 +84,22 @@ from xgboost_training_usa_30s import (
     spatial_block_ids,
 )
 
-# Upstream's final hyperparameters (main_example.py, ConfigArgs).
+# Upstream's architecture and schedule (main_example.py, ConfigArgs); the
+# optimiser settings below are retuned for this dataset, and these defaults are
+# the ones the shipped checkpoint was trained with.
 DEFAULT_HIDDEN_SIZE = 250
 DEFAULT_HIDDEN_NBR = 2
-DEFAULT_LEARNING_RATE = 0.00002
-DEFAULT_WEIGHT_DECAY = 3e-4
-DEFAULT_BATCH_SIZE = 250
+# Learning rate and batch size are raised for speed, not accuracy: a 100x
+# learning-rate range and a 33x batch range each moved AUC by under 0.005, but
+# batch 4096 finishes a screen in ~52 s against ~184 s at upstream's 250.
+DEFAULT_LEARNING_RATE = 1e-3
+# Weight decay is the accuracy fix. Upstream's 3e-4 was tuned on the small
+# Elith/NCEAS dataset and over-regularises 245k target-group cells x 255
+# species; 2e-5 is worth ~4.5 AUC points on 5-fold spatial CV. It is a sharp
+# optimum, not a trend — 3e-3 collapses to 0.72 and 0 is also poor — with a
+# broad plateau between 1e-5 and 5e-5.
+DEFAULT_WEIGHT_DECAY = 2e-5
+DEFAULT_BATCH_SIZE = 4096
 DEFAULT_EPOCHS = 100
 DEFAULT_LOSS = "deepmaxent"
 LOSS_CHOICES = ("deepmaxent", "poisson", "bce", "ce")
