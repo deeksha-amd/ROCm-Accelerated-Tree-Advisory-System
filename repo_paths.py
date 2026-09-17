@@ -54,7 +54,7 @@ def resolve(path: str) -> str:
     if os.path.isfile(joined):
         return joined
     name = os.path.basename(path)
-    for folder in (data("models"), data("models_usa_30s")):
+    for folder in (data("models"), data("models_usa_30s"), data("models_deepmaxent_usa_30s")):
         candidate = os.path.join(folder, name)
         if os.path.isfile(candidate):
             return candidate
