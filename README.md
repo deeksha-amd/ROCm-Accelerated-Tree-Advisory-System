@@ -28,6 +28,39 @@ Training needs a GPU (`device=cuda`, ROCm on MI300X). Recommend and maps run on 
 
 ---
 
+## Which model to pick
+
+Both gate on 5-fold spatial-block CV. Mean AUC over the species each one gates:
+
+| Model | Species gated | Mean AUC |
+|---|---|---|
+| XGBoost | 32 | 0.8451 |
+| DeepMaxent | 243 | 0.8534 |
+
+Those two numbers are **not** comparable: DeepMaxent's 0.8534 spans 243 species,
+many of them sparse and hard, against 32 well-sampled ones for XGBoost. On the 32
+both gate, XGBoost is still ahead — **0.8451 vs 0.8235**. DeepMaxent does not win
+on accuracy. The protocols also differ in difficulty, unresolved so far: XGBoost
+blocks each species' own points, so held-out ground still lies inside that
+species' range, while DeepMaxent blocks all 245k CONUS cells into
+continental-scale chunks (per-fold 0.887 / 0.888 / 0.818 / 0.867 / 0.804). Part
+of the gap is likely protocol rather than model quality, but that is unproven.
+
+Coverage is the sharper difference. DeepMaxent gates 243 of the 285 names it
+trains on against XGBoost's 32, and the default `--min-auc 0.70` leaves 236
+eligible at a pin (XGBoost: 31), so shortlists come from a much wider pool.
+Retraining cuts the other way: `--skip-existing` makes XGBoost incremental, so
+adding 20 species costs 20 species of training, while DeepMaxent fits every
+species jointly and adding one means refitting all of them (~5-6 min). XGBoost
+ships 255 JSON files, DeepMaxent one 0.8 MB checkpoint.
+
+Scoring is CPU-only by design for both. A pin costs ~2.6 s with `--model
+deepmaxent` against ~1.4 s with `--model xgboost`, nearly all of it importing
+torch rather than the model. The GPU is skipped deliberately: it needs 2.25 s of
+warm-up, more than the 0.74 s CPU forward pass over all 245k cells.
+
+---
+
 ## A git clone cannot run Austin
 
 `metrics.csv` and `feature_names.txt` are in git. The rest of the USA runtime
@@ -86,10 +119,12 @@ python recommend_usa_30s.py --model deepmaxent --lat 30.2672 --lon -97.7431 --go
 ```
 
 Open `maps/austin.html`. The page shows lat/lon, a 1 km cell, today vs 2050
-record-likeness bars, and **species-wide** XGBoost gain (not a local explanation
-of the pin). Invasive and naturalised trees (chinaberry, tree-of-heaven, …)
-are trained so the model knows them, then **dropped from the top-5** and listed
-under “do not plant”.
+record-likeness bars, and a per-layer breakdown that depends on the model:
+`--model xgboost` reports **species-wide** gain (not a local explanation of the
+pin), while `--model deepmaxent` reports a **local sensitivity at that pin** —
+`|d lambda / d z|`, the score change per 1 SD of each layer. Invasive and
+naturalised trees (chinaberry, tree-of-heaven, …) are trained so the model
+knows them, then **dropped from the top-5** and listed under “do not plant”.
 
 CONUS only. Pins outside the lower-48 envelope are rejected.
 
@@ -145,8 +180,11 @@ this is a single run rather than one per species.
 
 ```bash
 python deepmaxent_training_usa_30s.py --smoke        # wiring check, ~1 min
-python deepmaxent_training_usa_30s.py --full-list    # 5 CV folds + final fit
+python deepmaxent_training_usa_30s.py --full-list    # 5 CV folds + final fit, ~5-6 min
 ```
+
+Needs ~6 GB RAM for the same 61-layer stack as the boosters. Of the ~5-6 min on
+one MI300X, the final fit is 68 s; the rest is the five CV folds.
 
 Writes `data/models_deepmaxent_usa_30s/deepmaxent_usa_30s.pt`, `metrics.csv`
 and `feature_names.txt`; leaves the boosters alone. The defaults reproduce the
