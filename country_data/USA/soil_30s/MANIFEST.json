@@ -1,0 +1,92 @@
+{
+  "country": "USA",
+  "block": "soil_30s",
+  "resolution": "30 arcsec (1/120 deg, ~1 km)",
+  "grid": {
+    "crs": "EPSG:4326",
+    "transform": [
+      0.008333333333333333,
+      0.0,
+      -125.0,
+      0.0,
+      -0.008333333333333333,
+      49.5
+    ],
+    "width": 7020,
+    "height": 3060,
+    "bounds": [
+      -125.0,
+      24.0,
+      -66.5,
+      49.5
+    ],
+    "defined_by": "country_grid.json"
+  },
+  "depths": [
+    "0-30cm",
+    "30-60cm"
+  ],
+  "sources": {
+    "OpenLandMap-soildb": {
+      "resolution": "120m native, EPSG:4326",
+      "epoch": "2020-2022",
+      "properties": [
+        "bdod",
+        "clay",
+        "ph_h2o",
+        "sand",
+        "silt",
+        "soc",
+        "socd"
+      ],
+      "role": "primary",
+      "licence": "CC-BY 4.0"
+    },
+    "SoilGrids 2.0": {
+      "resolution": "1000m (1 km aggregate, one global COG per layer), Interrupted Goode Homolosine, warped to EPSG:4326",
+      "epoch": "2020 release",
+      "properties": [
+        "cec",
+        "cfvo",
+        "nitrogen",
+        "+ backfill for the OpenLandMap properties"
+      ],
+      "role": "properties OpenLandMap does not model, plus gap backfill",
+      "licence": "CC-BY 4.0"
+    }
+  },
+  "derived": {
+    "drainage": "1 + 6 * clip((sand - clay + 100) / 200); a relative ranking index, not a measurement"
+  },
+  "backfill_enabled": true,
+  "layers": [
+    "bdod_0-30cm_30s.tif",
+    "bdod_30-60cm_30s.tif",
+    "cec_0-30cm_30s.tif",
+    "cec_30-60cm_30s.tif",
+    "cfvo_0-30cm_30s.tif",
+    "cfvo_30-60cm_30s.tif",
+    "clay_0-30cm_30s.tif",
+    "clay_30-60cm_30s.tif",
+    "drainage_0-30cm_30s.tif",
+    "drainage_30-60cm_30s.tif",
+    "nitrogen_0-30cm_30s.tif",
+    "nitrogen_30-60cm_30s.tif",
+    "ph_h2o_0-30cm_30s.tif",
+    "ph_h2o_30-60cm_30s.tif",
+    "sand_0-30cm_30s.tif",
+    "sand_30-60cm_30s.tif",
+    "silt_0-30cm_30s.tif",
+    "silt_30-60cm_30s.tif",
+    "soc_0-30cm_30s.tif",
+    "soc_30-60cm_30s.tif",
+    "socd_0-30cm_30s.tif",
+    "socd_30-60cm_30s.tif",
+    "source_flag_30s.tif"
+  ],
+  "caveats": [
+    "The country block reads the NATIVE 250 m / 120 m products, while soil_data/aligned_10m/ was built from the 5 km aggregate. Values will therefore differ slightly from a block-reduction of the global block; that is the point, not an error.",
+    "nitrogen and organic carbon shift over decades, so treating them as static is weaker than it is for texture and stones.",
+    "source_flag_30s.tif describes the OpenLandMap properties only."
+  ]
+}

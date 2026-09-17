@@ -1,0 +1,57 @@
+{
+  "country": "FRA",
+  "block": "topography_30s",
+  "resolution": "30 arcsec (1/120 deg, ~1 km)",
+  "grid": {
+    "crs": "EPSG:4326",
+    "transform": [
+      0.008333333333333333,
+      0.0,
+      -5.5,
+      0.0,
+      -0.008333333333333333,
+      51.5
+    ],
+    "width": 1860,
+    "height": 1260,
+    "bounds": [
+      -5.5,
+      41.0,
+      10.0,
+      51.5
+    ],
+    "defined_by": "country_grid.json"
+  },
+  "source": {
+    "name": "GEDTM30 v1.2",
+    "url": "https://s3.opengeohub.org/global/dtm/v1.2/gedtm_rf_m_30m_s_20060101_20151231_go_epsg.4326.3855_v1.2.tif",
+    "native_resolution": "1 arcsec (~30 m)",
+    "coverage": "85N to 65S",
+    "licence": "CC-BY-4.0",
+    "why": "bare-earth digital TERRAIN model; surface models such as Copernicus DEM and SRTM sit on the canopy and their error tracks tree cover, which would leak the response variable into elevation, slope and aspect alike"
+  },
+  "method": {
+    "slope": "Horn (1981) 3x3 at native 1 arcsec with a per-row dx = res * 111320 * cos(lat), then reduced",
+    "aspect": "decomposed into northness = cos(aspect) and eastness = sin(aspect), weighted by sin(slope); a mean of aspect DEGREES would be invalid",
+    "reduction": "GDAL warper, because GEDTM30's grid is 4.5 native pixels off the whole-degree line so a block reduction would be half a pixel out of register",
+    "validated_in": "validate_topography_alignment.py, which cross-checked this slope against GEDTM30's own published slope layer"
+  },
+  "tiles_processed": 325,
+  "layers": [
+    "aspect_strength.tif",
+    "eastness.tif",
+    "elev_max.tif",
+    "elev_mean.tif",
+    "elev_min.tif",
+    "elev_range.tif",
+    "elev_std.tif",
+    "northness.tif",
+    "slope_max.tif",
+    "slope_mean.tif",
+    "slope_q3.tif"
+  ],
+  "caveats": [
+    "Aspect is intrinsically a hillside-scale variable. Even at 1 km a cell in steep country contains slopes facing every direction, so they partly cancel; aspect_strength records how much. Expect northness and eastness to rank below slope and elev_std.",
+    "GEDTM30 is a 2006-2015 product and is treated as static."
+  ]
+}

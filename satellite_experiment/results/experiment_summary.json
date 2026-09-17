@@ -1,0 +1,180 @@
+{
+  "experiment": "satellite layers as SDM predictors, France",
+  "not_a_production_model": true,
+  "profile": "fra_30s",
+  "grid": "1860x1260 @ 0.0083333333 deg",
+  "occurrence_source": "satellite_experiment/occurrences_snapshot.csv",
+  "background_kind": "effort_weighted_resampled",
+  "n_rows": 193995,
+  "n_species": 69,
+  "folds": 5,
+  "blocks": 10,
+  "epochs": 60,
+  "climate_window": "recent",
+  "threshold_strategy": "max_tss",
+  "feature_sets": {
+    "env": {
+      "label": "environment only (production baseline)",
+      "n_columns": 64,
+      "n_predictors": 61,
+      "epochs_used": [
+        51,
+        8,
+        27,
+        18,
+        22
+      ]
+    },
+    "env_satellite": {
+      "label": "environment + all satellite",
+      "n_columns": 84,
+      "n_predictors": 78,
+      "epochs_used": [
+        25,
+        8,
+        15,
+        8,
+        27
+      ]
+    },
+    "satellite": {
+      "label": "satellite only (no climate, soil or terrain)",
+      "n_columns": 20,
+      "n_predictors": 17,
+      "epochs_used": [
+        18,
+        9,
+        4,
+        9,
+        12
+      ]
+    },
+    "env_soilmoisture": {
+      "label": "environment + soil moisture only",
+      "n_columns": 67,
+      "n_predictors": 63,
+      "epochs_used": [
+        20,
+        8,
+        11,
+        26,
+        30
+      ]
+    },
+    "env_circular": {
+      "label": "environment + tree cover and NDVI only (the circular half)",
+      "n_columns": 73,
+      "n_predictors": 68,
+      "epochs_used": [
+        51,
+        22,
+        32,
+        10,
+        34
+      ]
+    },
+    "env_availability": {
+      "label": "environment + non-tree land cover only (land use)",
+      "n_columns": 73,
+      "n_predictors": 69,
+      "epochs_used": [
+        25,
+        8,
+        41,
+        21,
+        33
+      ]
+    },
+    "env_builtup": {
+      "label": "environment + built-up fraction only (bias probe)",
+      "n_columns": 66,
+      "n_predictors": 62,
+      "epochs_used": [
+        50,
+        7,
+        32,
+        12,
+        36
+      ]
+    },
+    "env_cropland": {
+      "label": "environment + cropland fraction only (land-use probe)",
+      "n_columns": 66,
+      "n_predictors": 62,
+      "epochs_used": [
+        51,
+        7,
+        28,
+        18,
+        34
+      ]
+    },
+    "env_availability_no_builtup": {
+      "label": "environment + land use except built-up",
+      "n_columns": 72,
+      "n_predictors": 68,
+      "epochs_used": [
+        20,
+        17,
+        23,
+        12,
+        48
+      ]
+    }
+  },
+  "satellite_layers": [
+    "satellite_experiment/FRA_30s/landcover_tree_frac.tif",
+    "satellite_experiment/FRA_30s/landcover_tree_broadleaf_frac.tif",
+    "satellite_experiment/FRA_30s/landcover_tree_needleleaf_frac.tif",
+    "satellite_experiment/FRA_30s/landcover_shrub_frac.tif",
+    "satellite_experiment/FRA_30s/landcover_grass_natural_frac.tif",
+    "satellite_experiment/FRA_30s/landcover_cropland_frac.tif",
+    "satellite_experiment/FRA_30s/landcover_builtup_frac.tif",
+    "satellite_experiment/FRA_30s/landcover_bare_frac.tif",
+    "satellite_experiment/FRA_30s/landcover_water_frac.tif",
+    "satellite_experiment/FRA_30s/landcover_snowice_frac.tif",
+    "satellite_experiment/FRA_30s/landcover_land_frac.tif",
+    "satellite_experiment/FRA_30s/ndvi_observed_mean.tif",
+    "satellite_experiment/FRA_30s/ndvi_peak.tif",
+    "satellite_experiment/FRA_30s/ndvi_growing_season_mean.tif",
+    "satellite_experiment/FRA_30s/ndvi_seasonal_amplitude.tif",
+    "satellite_experiment/FRA_30s/soilmoisture_mean.tif",
+    "satellite_experiment/FRA_30s/soilmoisture_amplitude.tif"
+  ],
+  "strata": {
+    "all": "all held-out cells",
+    "low_tree": "tree cover <= 10%",
+    "no_tree": "tree cover <= 2% (strictest)",
+    "cropland": "cropland >= 50%",
+    "high_tree": "tree cover >= 50% (contrast)"
+  },
+  "stratum_cells": {
+    "all": 193995,
+    "low_tree": 96114,
+    "no_tree": 76455,
+    "cropland": 77681,
+    "high_tree": 48520
+  },
+  "input_checksums": {
+    "occurrences": "b6c16f3b5338eea26651db37f76ec546",
+    "background": "7d844874141c8d77d3644f4b6f110230",
+    "effort_raster": "bd108eab102360834b3454989e8d1cb5"
+  },
+  "verdict": {
+    "auc_delta_all": 0.012167961373919874,
+    "auc_delta_low_tree": 0.01402788662734137,
+    "auc_delta_no_tree": 0.01481768958725451,
+    "auc_delta_cropland": 0.011449081605670909,
+    "auc_delta_high_tree": 0.0038243416245418898,
+    "summary": "REFUTES the circularity finding on this data: the advantage persists on treeless land",
+    "auc_delta_all_env_circular": 0.0074188958949826765,
+    "auc_delta_all_env_availability": 0.011599496779254556,
+    "auc_delta_all_env_availability_no_builtup": 0.006662125510390794,
+    "auc_delta_all_env_builtup": 0.007890291281186245,
+    "auc_delta_all_env_cropland": 0.002275203200173346,
+    "auc_delta_all_env_soilmoisture": 0.00040301895297477824,
+    "auc_delta_all_env_satellite": 0.012167961373919874,
+    "top_separator_no_tree": "landcover_builtup_frac"
+  },
+  "elapsed_seconds": 446.2
+}

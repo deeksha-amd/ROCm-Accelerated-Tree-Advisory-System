@@ -1,0 +1,48 @@
+{
+  "country": "ES",
+  "country_bounds": [
+    35.9,
+    43.8,
+    -9.4,
+    4.4
+  ],
+  "resolution": "30s",
+  "target_grid": {
+    "width": 1680,
+    "height": 1020,
+    "crs": "EPSG:4326",
+    "transform": [
+      0.008333333333333333,
+      0.0,
+      -9.5,
+      0.0,
+      -0.008333333333333333,
+      44.0
+    ],
+    "template": "country_data/ESP/country_grid.json"
+  },
+  "effort_raster": "sampling_effort/plant_effort_ES_30s.tif",
+  "smoothed_raster": "sampling_effort/plant_effort_ES_30s_smoothed.tif",
+  "smooth_km": 1.0,
+  "smooth_passes": 3,
+  "country_mask": "Natural Earth polygon",
+  "target_group": "Tracheophyta",
+  "taxon_key": 7707728,
+  "tile_zoom": 8,
+  "tile_pixels_read": 2361228,
+  "records_total": 19346125.644444443,
+  "cells_surveyed": 479709,
+  "verification_ratios": [
+    1.0097,
+    1.0004,
+    0.9905,
+    1.0026,
+    1.0082,
+    1.0093
+  ],
+  "occurrence_filters": {
+    "hasCoordinate": "true",
+    "hasGeospatialIssue": "false",
+    "occurrenceStatus": "PRESENT"
+  }
+}

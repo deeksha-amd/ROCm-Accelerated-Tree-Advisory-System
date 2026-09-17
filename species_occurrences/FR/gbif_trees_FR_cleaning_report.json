@@ -1,0 +1,52 @@
+{
+  "country": "FR",
+  "input": "species_occurrences/FR/gbif_trees_FR_raw.csv",
+  "dropped": {
+    "not_vascular_plant": 0,
+    "duplicate_species_coordinate": 130535,
+    "null_island": 0,
+    "lat_equals_lon": 0,
+    "outside_country": 0,
+    "magnet_coordinate": 6414,
+    "ocean": 132,
+    "range_outlier": 3049
+  },
+  "before": {
+    "label": "input",
+    "records": 383876,
+    "species": 96,
+    "year_median": 2012,
+    "top5_species_pct": 5.21
+  },
+  "after": {
+    "label": "clean",
+    "records": 243746,
+    "species": 96,
+    "year_median": 2019,
+    "top5_species_pct": 7.62
+  },
+  "magnet_coordinates": 1515,
+  "whole_degree_flagged": 5,
+  "ocean_test_ran": true,
+  "config": {
+    "magnet_min_species": 8,
+    "magnet_min_records": 25,
+    "outlier_mad_mult": 6.0,
+    "outlier_floor_km": 400.0,
+    "country_envelope_margin_deg": 0.5
+  },
+  "thinned": {
+    "label": "thinned",
+    "records": 78340,
+    "species": 96,
+    "year_median": 2021,
+    "top5_species_pct": 8.31,
+    "distinct_cells": 2517,
+    "species_usable": 96,
+    "species_below_threshold": 0,
+    "records_per_species_median": 887,
+    "records_per_species_p10": 266,
+    "records_per_species_p90": 1188,
+    "records_per_species_max": 1367
+  }
+}
