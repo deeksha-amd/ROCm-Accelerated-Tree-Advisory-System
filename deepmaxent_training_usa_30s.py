@@ -103,6 +103,18 @@ DEFAULT_BATCH_SIZE = 4096
 DEFAULT_EPOCHS = 100
 DEFAULT_LOSS = "deepmaxent"
 LOSS_CHOICES = ("deepmaxent", "poisson", "bce", "ce")
+# Compiling the loss is on by default and is worth 2x end to end. The maxent
+# loss normalises over the cell (batch) dimension, and ATen's log_softmax takes
+# a slow generic path for any dim that is not the last: on an MI300X,
+# log_softmax(0) forward+backward on one 4096 x 255 batch costs 4.9 ms against
+# 0.08 ms for log_softmax(1) on the same shape. That single kernel is 73% of
+# the step — forward is 0.14 ms and the whole step is 6.7 ms. torch.compile
+# emits one fused reduction instead and takes the step to 1.3 ms (5.0x). The
+# vendored loss object is wrapped, never edited. Inductor's reduction order
+# differs from ATen's, so the weights are not bit-identical with the eager
+# path; the shipped checkpoint was trained with compilation on, and
+# --no-compile-loss restores the eager path.
+DEFAULT_COMPILE_LOSS = True
 
 SEED = 42
 # log_softmax over the batch is the maxent normaliser; a 1-cell batch is a
@@ -223,6 +235,7 @@ def train_network(
     seed,
     label,
     log_every,
+    compile_loss=DEFAULT_COMPILE_LOSS,
 ):
     """Upstream train_deepmodel: Adam, keep the best-loss epoch. Batching runs on
     tensors already resident on the GPU instead of through a DataLoader —
@@ -240,6 +253,8 @@ def train_network(
     model = deepmaxent_model(X.shape[1], hidden_size, Y.shape[1], hidden_nbr)
     model = model.to(device)
     criterion = make_criterion(loss_option).to(device)
+    if compile_loss:
+        criterion = torch.compile(criterion)
     optimizer = optim.Adam(
         [
             {
@@ -379,9 +394,10 @@ def cross_validate(table, args):
             batch_size=args.batch_size,
             epochs=args.epochs,
             loss_option=args.loss,
-            seed=SEED + i,
+            seed=SEED + i + args.seed_offset,
             label=f"fold {i}",
             log_every=args.log_every,
+            compile_loss=args.compile_loss,
         )
         lam_val = log_intensity(model, X_val, args.device)
         per_fold[i - 1] = fold_auc(lam_val, table.presence[val_idx])
@@ -511,6 +527,36 @@ def parse_args(argv=None):
             "reintroduces the survey effort the 1 km thinning removed"
         ),
     )
+    parser.add_argument(
+        "--seed-offset",
+        type=int,
+        default=0,
+        help=(
+            "shift the network init and shuffling seed only; the KMeans blocks "
+            "and fold assignment stay on SEED, so repeats measure training "
+            "noise alone. 0 is the shipped behaviour"
+        ),
+    )
+    parser.add_argument(
+        "--compile-loss",
+        dest="compile_loss",
+        action="store_true",
+        default=DEFAULT_COMPILE_LOSS,
+        help=(
+            "torch.compile the loss so log_softmax over the cell dimension "
+            "stops using ATen's slow non-last-dim path: 5x on the step, 2x "
+            "end to end. On by default; this flag only restates the default"
+        ),
+    )
+    parser.add_argument(
+        "--no-compile-loss",
+        dest="compile_loss",
+        action="store_false",
+        help=(
+            "run the loss eagerly. Inductor reduces in a different order, so "
+            "eager weights are not bit-identical to the shipped checkpoint"
+        ),
+    )
     parser.add_argument("--log-every", type=int, default=10)
     parser.add_argument(
         "--smoke",
@@ -625,9 +671,10 @@ def main(argv=None):
         batch_size=args.batch_size,
         epochs=args.epochs,
         loss_option=args.loss,
-        seed=SEED,
+        seed=SEED + args.seed_offset,
         label="final",
         log_every=args.log_every,
+        compile_loss=args.compile_loss,
     )
     lam_all = log_intensity(model, X_all, args.device)
     log_z = log_normaliser(lam_all)
@@ -663,6 +710,7 @@ def main(argv=None):
             ),
             target="n_records" if args.use_record_counts else "presence",
             seed=SEED,
+            compile_loss=bool(args.compile_loss),
         ),
     )
 
