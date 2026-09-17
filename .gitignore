@@ -26,6 +26,9 @@ topography/
 satellite/
 climate_recent/
 climate_2000_2015/
+climate_future_2050/
+maps/*.tif
+suggest.html
 validation/
 
 # ─── per-country data trees ───
@@ -123,3 +126,5 @@ sampling_effort/*.tif
 # caches, cleaning reports and manifests stay tracked as provenance, and
 # advisory_service.py reads the plans and caches for common names.
 species_occurrences/*/raw/
+!data/species_traits.csv
+!models/metrics.csv
