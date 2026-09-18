@@ -350,10 +350,14 @@ Same list, with more context, in `README.md`.
 # USA 1 km train (GPU node)
 python xgboost_training_usa_30s.py --full-list --skip-existing
 
+# USA 1 km Deep SDM train (same data, one network for every species)
+python deepmaxent_training_usa_30s.py --full-list
+
 # USA 1 km recommend
 python future_climate_usa_30s.py
 python data/scripts/satellite_rasters_usa_30s.py --smoke
 python recommend_usa_30s.py --lat 30.2672 --lon -97.7431 --goal shade --html maps/austin.html
+python recommend_usa_30s.py --model deepmaxent --lat 30.2672 --lon -97.7431 --goal shade
 python suitability_maps_usa_30s.py --species "Quercus virginiana"
 
 # grow the list after the seed run (keeps models already on disk):
@@ -389,6 +393,7 @@ The 1 km CONUS trainer is a different contract:
 | Cleaner | `clean_species_usa_30s.py` |
 | Thinned table | `data/species_occurrences/US/gbif_trees_US_30s_thinned.csv` |
 | Trainer | `xgboost_training_usa_30s.py` |
+| Deep SDM trainer | `deepmaxent_training_usa_30s.py` |
 | Recommend | `recommend_usa_30s.py` (CONUS 1 km; not `poc/recommend.py`) |
 | 2050 BIO | `future_climate_usa_30s.py` → `data/country_data/USA/climate_future_2050_30s/` |
 | Satellite filters | `data/scripts/satellite_rasters_usa_30s.py` → `data/country_data/USA/satellite_30s/` |
@@ -405,3 +410,64 @@ Differences from the 10-arc-minute run that matter:
 - **2050 BIO** is `python future_climate_usa_30s.py` (10-arcmin ssp245 anomaly onto the 1 km training climate). Soil/terrain stay put. Do not upsample the global 10m cube.
 - **Satellite filters** must be the 1 km `satellite_30s/` stack. A git clone has neither rasters nor JSON boosters.
 - Needs ~6 GB RAM to hold the raster stack during training. `poc/recommend.py` still reads the **10-arc-minute** models; USA pins use `recommend_usa_30s.py`.
+
+---
+
+## 11. The second USA 1 km model: DeepMaxent (`--model deepmaxent`)
+
+`deepmaxent_training_usa_30s.py` trains a Deep SDM on **exactly** the inputs
+section 10 describes. It imports `collect_predictor_paths`, `Usa30sPredictors`,
+`load_occurrence_table`, `spatial_block_ids` and the gate constants straight
+from `xgboost_training_usa_30s.py` rather than restating them, so the two
+models cannot drift onto different data. The network and its maximum-entropy
+loss are vendored verbatim in `deepmaxent/` from
+[RYCKEWAERT/deepmaxent](https://github.com/RYCKEWAERT/deepmaxent).
+
+What is genuinely different, and why:
+
+| | XGBoost | DeepMaxent |
+|---|---|---|
+| Shape | one booster per species | one network, one output per species |
+| Training rows | per-species presence + sampled background | one row per target-group **cell**, all species at once |
+| Background | 1:1 sample of other-tree cells | every other-tree cell, via the maxent normaliser |
+| Missing layer at a cell | native missing-value branch | cell dropped in training; read as the US mean at score time |
+| Artifacts | 255 `.json` | one `.pt` |
+
+**Why the cell table.** The maxent loss is `-(y * logsoftmax(λ, dim=cells))`:
+it normalises each species' log-intensity **over cells**, so a row has to be a
+cell and a column has to be a species. The per-species presence/background
+draws XGBoost uses cannot express that. The cell universe is still exactly the
+target-group idea — a cell is in the table if any listed tree was recorded
+there — so the evidence is unchanged, only its shape.
+
+**Reading the score.** The network's λ is only defined up to a per-species
+constant. Training stores `log_z_s = log mean_cells exp(λ_s)` and recommend
+reports `p = sigmoid(λ_s − log_z_s)`, so `p = 0.5` is an average target-group
+cell. That is the same question the boosters answer with their 1:1 sampling,
+which is why the two models share thresholds and one `metrics.csv` schema.
+
+**Gating is unchanged**: 150 unique 1 km cells, spatial-block CV, ≥ 3 usable
+folds, and `load_saved_models` reads the same
+`species,auc,n_folds_usable,model_path,status` columns. A species that fails
+the fold gate still has an output in the network; it is simply not offered.
+
+**Weight decay is the accuracy fix; learning rate and batch size are speed.**
+Upstream's `3e-4` was set on the much smaller Elith/NCEAS benchmark and
+over-regularises 245,276 target-group cells × 255 species. At `2e-5` the gated
+mean AUC goes from 0.808 to 0.853, and from 0.793 to 0.824 on the 32 species
+XGBoost also gates, where the boosters score 0.845; every one of the five
+spatial folds improved. The optimum is sharp rather than monotonic — `3e-3`
+collapses to 0.72 and `0` is also poor, with a broad plateau between 1e-5 and
+5e-5 — so this is not "less regularisation is better". The other two changed
+defaults, `--learning-rate 1e-3` and `--batch-size 4096`, buy roughly 4x
+throughput and nothing else: a 100x learning-rate range and a 33x batch range
+each moved AUC by under 0.005. Extra capacity helped only while the weight
+decay was wrong, so the architecture stays upstream's.
+
+**Feature order is the contract.** `DeepMaxentSDM.assert_feature_order` refuses
+to score if the caller's 61 layers are not the checkpoint's 61 layers, because
+a silent reorder would score every species against the wrong rasters.
+
+The per-pin "which layers mattered" panel differs by necessity: XGBoost reports
+species-wide gain, DeepMaxent reports `|∂λ_s/∂z_j|` at that pin (a local
+gradient, per 1 SD of each layer). The captions say which one you are reading.
