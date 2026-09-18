@@ -1,13 +1,19 @@
-"""USA 1 km planting shortlist from data/models_usa_30s/.
+"""USA 1 km planting shortlist, from either SDM.
 
-p is record-likeness vs other listed trees, not planting suitability.
-Invasive/naturalised checklist trees are dropped from the top-5.
+--model xgboost    per-species boosters in data/models_usa_30s/
+--model deepmaxent one DeepMaxent network in data/models_deepmaxent_usa_30s/
+
+Both read the same 61-layer 1 km stack and the same target-group training data,
+so p means the same thing either way: record-likeness of this cell against an
+average cell where some other listed tree was recorded. It is not planting
+suitability. Invasive/naturalised checklist trees are dropped from the top-5.
 Satellite filters come from data/country_data/USA/satellite_30s/ (1 km),
 never from the 18 km data/satellite/ stack.
 
     python data/scripts/satellite_rasters_usa_30s.py --smoke
     python future_climate_usa_30s.py
     python recommend_usa_30s.py --lat 30.2672 --lon -97.7431 --html maps/austin.html
+    python recommend_usa_30s.py --model deepmaxent --lat 30.2672 --lon -97.7431
     python suitability_maps_usa_30s.py --species "Quercus virginiana"
 """
 
@@ -47,10 +53,13 @@ from poc.recommend import (
 from poc.recommend_html import write_html, _safe
 from repo_paths import data
 from clean_species_usa_30s import TEMPLATE, read_grid
-from xgboost_training_usa_30s import MODEL_DIR, collect_predictor_paths
+from xgboost_training_usa_30s import MODEL_DIR as XGB_MODEL_DIR
+from xgboost_training_usa_30s import collect_predictor_paths
+
+import deepmaxent_sdm
 
 TOP_N = 5
-METRICS_PATH = os.path.join(MODEL_DIR, "metrics.csv")
+DEFAULT_MODEL = "xgboost"
 USA_TRAITS_CSV = data("usa_tree_species_list.csv")
 FUTURE_30S_DIR = data("country_data", "USA", "climate_future_2050_30s")
 SATELLITE_DIR = data("country_data", "USA", "satellite_30s")
@@ -71,8 +80,11 @@ SCORE_DISCLAIMER = (
     "that species versus other listed trees (target-group background). It is "
     "not a planting permit, survival odds, or a backyard shade model."
 )
-IMPORTANCE_CAPTION = (
+XGB_IMPORTANCE_CAPTION = (
     "Species-wide XGBoost gain (all US training cells), not why this pin scored:"
+)
+DEEPMAXENT_IMPORTANCE_CAPTION = (
+    "DeepMaxent sensitivity at this pin (score change per 1 SD of each layer):"
 )
 
 BIO_PLAIN = {
@@ -197,8 +209,8 @@ def do_not_plant(traits):
     return bool(DO_NOT_PLANT_RE.search(blob))
 
 
-def require_usa_runtime():
-    """Clone-honest checks: rasters and JSON boosters are gitignored."""
+def require_usa_rasters():
+    """Clone-honest check: a git clone has no rasters (gitignored)."""
     if not os.path.isfile(TEMPLATE):
         raise SystemExit(
             "USA 1 km climate template missing:\n"
@@ -206,19 +218,6 @@ def require_usa_runtime():
             "A git clone does not include rasters (gitignored under "
             "data/country_data/). Copy climate_30s/, soil_30s/, and "
             "topography_30s/ from the machine that built the country stack."
-        )
-    if not os.path.isfile(METRICS_PATH):
-        raise SystemExit(
-            f"Missing {METRICS_PATH}. Train with:\n"
-            "  python xgboost_training_usa_30s.py --full-list --skip-existing"
-        )
-    n_json = len(glob.glob(os.path.join(MODEL_DIR, "*.json")))
-    if n_json == 0:
-        raise SystemExit(
-            f"No boosters in {MODEL_DIR}/*.json.\n"
-            "metrics.csv is tracked; the JSON files are gitignored. "
-            "Copy them from the training machine, or train:\n"
-            "  python xgboost_training_usa_30s.py --full-list --skip-existing"
         )
 
 
@@ -292,21 +291,21 @@ def plain_layer_name(filename):
     return stem.replace("_", " ")
 
 
-def feature_importance_rows(model, names, top_n=5):
-    """Global gain share for this species — not a local explanation of the pin."""
-    try:
-        gain = np.asarray(model.feature_importances_, dtype=np.float64)
-    except Exception:
+def importance_rows(weights, names, top_n=5):
+    """Turn a per-layer weight vector into the top few shares the UI shows.
+    What the weights mean is the backend's business — see the captions."""
+    if weights is None:
         return []
-    if gain.size != len(names) or not np.isfinite(gain).any():
+    weights = np.asarray(weights, dtype=np.float64)
+    if weights.size != len(names) or not np.isfinite(weights).any():
         return []
-    total = float(gain.sum())
+    weights = np.where(np.isfinite(weights), weights, 0.0)
+    total = float(weights.sum())
     if total <= 0:
         return []
-    order = np.argsort(-gain)[:top_n]
     rows = []
-    for i in order:
-        share = float(gain[i] / total)
+    for i in np.argsort(-weights)[:top_n]:
+        share = float(weights[i] / total)
         if share < 0.01:
             continue
         rows.append({
@@ -315,6 +314,112 @@ def feature_importance_rows(model, names, top_n=5):
             "share": round(share, 4),
         })
     return rows
+
+
+class XgboostBackend:
+    """One gradient-boosted booster per species, loaded on demand."""
+
+    kind = "xgboost"
+    title = "XGBoost"
+    model_dir = XGB_MODEL_DIR
+    metrics_path = os.path.join(XGB_MODEL_DIR, "metrics.csv")
+    train_hint = "  python xgboost_training_usa_30s.py --full-list --skip-existing"
+    importance_caption = XGB_IMPORTANCE_CAPTION
+    missing_layer_note = (
+        "XGBoost treats those as missing rather than as average soil."
+    )
+
+    def __init__(self):
+        self._boosters = {}
+
+    def check_runtime(self):
+        if not os.path.isfile(self.metrics_path):
+            raise SystemExit(
+                f"Missing {self.metrics_path}. Train with:\n{self.train_hint}"
+            )
+        if not glob.glob(os.path.join(self.model_dir, "*.json")):
+            raise SystemExit(
+                f"No boosters in {self.model_dir}/*.json.\n"
+                "metrics.csv is tracked; the JSON files are gitignored. "
+                f"Copy them from the training machine, or train:\n{self.train_hint}"
+            )
+
+    def prepare(self, names):
+        return None
+
+    def _booster(self, rec):
+        if rec.species not in self._boosters:
+            self._boosters[rec.species] = load_booster(rec.model_path)
+        return self._boosters[rec.species]
+
+    def score(self, rec, x, tag="now"):
+        return float(self._booster(rec).predict_proba(x)[0, 1])
+
+    def importance(self, rec, names, values):
+        try:
+            gain = self._booster(rec).feature_importances_
+        except Exception:
+            return []
+        return importance_rows(gain, names)
+
+
+class DeepMaxentBackend:
+    """One DeepMaxent network for every species, so a pin is a single forward
+    pass; results are cached per predictor vector (today's, then 2050's)."""
+
+    kind = "deepmaxent"
+    title = "DeepMaxent"
+    model_dir = deepmaxent_sdm.MODEL_DIR
+    metrics_path = deepmaxent_sdm.METRICS_PATH
+    train_hint = deepmaxent_sdm.TRAIN_HINT
+    importance_caption = DEEPMAXENT_IMPORTANCE_CAPTION
+    missing_layer_note = (
+        "DeepMaxent reads those as average soil for the US, because the "
+        "network has no missing-value branch."
+    )
+
+    def __init__(self, checkpoint_path=deepmaxent_sdm.CHECKPOINT_PATH):
+        self.checkpoint_path = checkpoint_path
+        self.sdm = None
+        self._probabilities = {}
+
+    def check_runtime(self):
+        if not os.path.isfile(self.metrics_path):
+            raise SystemExit(
+                f"Missing {self.metrics_path}. Train with:\n{self.train_hint}"
+            )
+        if not os.path.isfile(self.checkpoint_path):
+            raise SystemExit(
+                f"No DeepMaxent checkpoint at {self.checkpoint_path}.\n"
+                "metrics.csv is tracked; the .pt file is gitignored. "
+                f"Copy it from the training machine, or train:\n{self.train_hint}"
+            )
+
+    def prepare(self, names):
+        self.sdm = deepmaxent_sdm.DeepMaxentSDM.load(self.checkpoint_path)
+        self.sdm.assert_feature_order(names)
+
+    def _vector(self, x, tag):
+        if tag not in self._probabilities:
+            self._probabilities[tag] = self.sdm.predict_proba(x)[0]
+        return self._probabilities[tag]
+
+    def score(self, rec, x, tag="now"):
+        column = self.sdm.index.get(rec.species)
+        if column is None:
+            return float("nan")
+        return float(self._vector(x, tag)[column])
+
+    def importance(self, rec, names, values):
+        return importance_rows(self.sdm.sensitivity(rec.species, values), names)
+
+
+def make_backend(kind):
+    if kind == "xgboost":
+        return XgboostBackend()
+    if kind == "deepmaxent":
+        return DeepMaxentBackend()
+    raise SystemExit(f"Unknown --model {kind!r}; use xgboost or deepmaxent.")
 
 
 def cell_geometry(lat, lon, path=TEMPLATE):
@@ -477,8 +582,10 @@ def assert_conus(lat, lon):
 
 
 def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAULT,
-              country=""):
-    require_usa_runtime()
+              country="", model=DEFAULT_MODEL):
+    backend = model if hasattr(model, "kind") else make_backend(model)
+    require_usa_rasters()
+    backend.check_runtime()
     assert_conus(lat, lon)
     try:
         names, values = sample_predictors(lat, lon)
@@ -503,7 +610,7 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
         missing_note = (
             f"{len(missing)} soil/terrain layer(s) have no value in this 1 km cell "
             f"({', '.join(missing[:6])}{'…' if len(missing) > 6 else ''}); "
-            "XGBoost treats those as missing rather than as average soil."
+            + backend.missing_layer_note
         )
 
     sat = sample_satellite(
@@ -526,13 +633,14 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
     site = site_plain_language(names, values)
     cell = tag_cell_status(cell_geometry(lat, lon), sat)
 
-    saved = load_saved_models(min_auc=min_auc, metrics_path=METRICS_PATH)
+    saved = load_saved_models(min_auc=min_auc, metrics_path=backend.metrics_path)
     if saved.empty:
         raise SystemExit(
-            f"No saved USA 1 km models in {METRICS_PATH} passed the AUC gate "
-            f"(or their .json files are missing under {MODEL_DIR}). "
-            "Train with: python xgboost_training_usa_30s.py --full-list --skip-existing"
+            f"No saved USA 1 km models in {backend.metrics_path} passed the AUC "
+            f"gate (or their weights are missing under {backend.model_dir}).\n"
+            f"Train with:\n{backend.train_hint}"
         )
+    backend.prepare(names)
 
     traits_table = load_usa_traits(saved["species"].tolist())
     traits_table = traits_table.set_index("species")
@@ -561,9 +669,8 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
         if sun == "full" and sun_need == "shade":
             continue
 
-        model = load_booster(rec.model_path)
-        p = float(model.predict_proba(x)[0, 1])
-        if p < 0.30:
+        p = backend.score(rec, x, tag="now")
+        if not np.isfinite(p) or p < 0.30:
             continue
         if do_not_plant(traits):
             avoided.append({
@@ -580,7 +687,7 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
         p_2050 = None
         delta = None
         if x2050 is not None:
-            p_2050 = float(model.predict_proba(x2050)[0, 1])
+            p_2050 = backend.score(rec, x2050, tag="2050")
             delta = p_2050 - p
         scored.append({
             "species": species,
@@ -594,7 +701,7 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
             "rank_score": p * float(rec.auc),
             "confidence": confidence(p, float(rec.auc), int(rec.n_folds_usable)),
             "reason": reason_for(species, traits, p, names, values),
-            "feature_importance": feature_importance_rows(model, names),
+            "feature_importance": backend.importance(rec, names, values),
             "care": "" if str(traits.get("care") or "").lower() in {"", "nan", "none"} else traits.get("care"),
             "warning": "" if str(traits.get("warning") or "").lower() in {"", "nan", "none"} else traits.get("warning"),
             "native": native_label(traits, region),
@@ -616,7 +723,9 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
         "goal": goal,
         "sun": sun,
         "n_models": int(len(saved)),
-        "importance_caption": IMPORTANCE_CAPTION,
+        "model": backend.kind,
+        "model_title": backend.title,
+        "importance_caption": backend.importance_caption,
         "disclaimer": SCORE_DISCLAIMER,
         "future": {
             "available": values_2050 is not None,
@@ -637,7 +746,10 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
 def print_report(result, address=None):
     print()
     print("=" * 64)
-    print("USA 1 km record-likeness shortlist")
+    print(
+        "USA 1 km record-likeness shortlist"
+        + (f"  ({result['model_title']})" if result.get("model_title") else "")
+    )
     print("=" * 64)
     where = address or f"{result['lat']:.4f}, {result['lon']:.4f}"
     print(f"Place:  {where}")
@@ -691,7 +803,7 @@ def print_report(result, address=None):
             fi = pick.get("feature_importance") or []
             if fi:
                 bits = [f"{row['label']} {row['share']:.0%}" for row in fi[:5]]
-                caption = result.get("importance_caption") or IMPORTANCE_CAPTION
+                caption = result.get("importance_caption") or ""
                 print("   " + caption + " " + ", ".join(bits))
             print(f"   {pick['native']}")
             if pick["care"]:
@@ -713,7 +825,13 @@ def print_report(result, address=None):
 
 def parse_args(argv=None):
     p = argparse.ArgumentParser(
-        description="Recommend trees from USA 1 km XGBoost models (not the 18 km POC)."
+        description="Recommend trees from the USA 1 km SDMs (not the 18 km POC)."
+    )
+    p.add_argument(
+        "--model",
+        choices=["xgboost", "deepmaxent"],
+        default=DEFAULT_MODEL,
+        help="which trained SDM to score with (default: %(default)s)",
     )
     p.add_argument("--lat", type=float)
     p.add_argument("--lon", type=float)
@@ -766,6 +884,7 @@ def main(argv=None):
         top=args.top,
         min_auc=args.min_auc,
         country=country,
+        model=args.model,
     )
     if args.html:
         path = write_html(result, args.html, address=address)

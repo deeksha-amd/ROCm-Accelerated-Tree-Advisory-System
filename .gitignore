@@ -36,6 +36,7 @@ data/soil_data/
 data/topography/
 data/satellite/
 data/country_data/
+data/country_data
 data/climate_recent/
 data/climate_2000_2015/
 data/climate_future_2050/
@@ -139,6 +140,10 @@ satellite_experiment/results/metrics_by_species_fold_stratum.csv
 !models/metrics.csv
 !models_usa_30s/metrics.csv
 !models_usa_30s/feature_names.txt
+!data/models_deepmaxent_usa_30s/metrics.csv
+!data/models_deepmaxent_usa_30s/feature_names.txt
+!models_deepmaxent_usa_30s/metrics.csv
+!models_deepmaxent_usa_30s/feature_names.txt
 
 # ─── effort surfaces ───
 # 76 MB of GeoTIFFs in sampling_effort/. The two the France profiles read are
@@ -156,9 +161,18 @@ sampling_effort/*.tif
 # advisory_service.py reads the plans and caches for common names.
 species_occurrences/*/raw/
 data/species_occurrences/
+# Same path as a symlink: a machine that keeps the payload elsewhere can point
+# data/ at it, and git must not try to commit the link. The rules above end in
+# "/" so they match a directory only.
+data/species_occurrences
 
 # USA 1 km boosters; keep metrics/feature names if present
 models_usa_30s/*.json
 data/models_usa_30s/*.json
 data/models_usa_30s_shared*/
 profiling/rocprof_xgb/*trace.csv
+
+# USA 1 km DeepMaxent checkpoint (~10 MB of weights); same deal as the
+# boosters — metrics.csv and feature_names.txt stay tracked as provenance.
+models_deepmaxent_usa_30s/*.pt
+data/models_deepmaxent_usa_30s/*.pt
