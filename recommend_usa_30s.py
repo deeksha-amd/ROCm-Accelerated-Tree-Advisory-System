@@ -748,10 +748,14 @@ def print_report(result, address=None):
             fi = pick.get("feature_importance") or []
             if fi:
                 bits = [f"{row['label']} {row['share']:.0%}" for row in fi[:5]]
+                print("   What this tree's model watches:")
                 print("   " + " · ".join(bits))
-            print(f"   {pick['native']}")
-            if pick["care"]:
-                print(f"   Care: {pick['care']}")
+            native_care = " ".join(
+                part for part in (pick.get("native"), pick.get("care")) if part
+            )
+            if native_care:
+                print("   Native range and care:")
+                print(f"   {native_care}")
             if pick["warning"]:
                 print(f"   Warning: {pick['warning']}")
             print()

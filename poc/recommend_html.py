@@ -112,7 +112,14 @@ TEMPLATE = r"""<!DOCTYPE html>
   .track.today i { background: var(--today); }
   .track.future i { background: var(--future); }
   .pct { text-align: right; font-variant-numeric: tabular-nums; }
-  .why, .care, .fi { font-size: 0.88rem; line-height: 1.35; margin: 8px 0 0; }
+  .why, .care, .fi { font-size: 0.88rem; line-height: 1.35; margin: 4px 0 0; }
+  .kicker {
+    margin: 10px 0 0;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
   .fi { color: var(--muted); font-size: 0.8rem; }
   .care { color: var(--muted); }
   .warn { color: var(--blocked); font-size: 0.85rem; margin-top: 6px; }
@@ -223,7 +230,13 @@ if (blocked) {
       : "";
     const fi = (p.feature_importance || []).slice(0, 5);
     const fiHtml = fi.length
-      ? `<p class="fi">${fi.map(x => x.label + " " + Math.round((x.share||0)*100) + "%").join(" · ")}</p>`
+      ? `<p class="kicker">What this tree’s model watches</p>
+      <p class="fi">${fi.map(x => x.label + " " + Math.round((x.share||0)*100) + "%").join(" · ")}</p>`
+      : "";
+    const nativeCare = [p.native, p.care].filter(Boolean).join(" ");
+    const careHtml = nativeCare
+      ? `<p class="kicker">Native range and care</p>
+      <p class="care">${nativeCare}</p>`
       : "";
     cards += `<article class="card">
       ${badge}
@@ -233,7 +246,7 @@ if (blocked) {
       ${futBar}
       ${futNote}
       ${fiHtml}
-      <p class="care">${p.native || ""} ${p.care || ""}</p>
+      ${careHtml}
       ${p.warning ? `<p class="warn">${p.warning}</p>` : ""}
     </article>`;
   });

@@ -629,9 +629,12 @@ def print_report(result, address=None):
         print(f"   {pick['reason']}")
         if pick.get("future_note"):
             print(f"   2050: {pick['future_note']}")
-        print(f"   {pick['native']}")
-        if pick["care"]:
-            print(f"   Care: {pick['care']}")
+        native_care = " ".join(
+            part for part in (pick.get("native"), pick.get("care")) if part
+        )
+        if native_care:
+            print("   Native range and care:")
+            print(f"   {native_care}")
         if pick["warning"]:
             print(f"   Warning: {pick['warning']}")
         print()
