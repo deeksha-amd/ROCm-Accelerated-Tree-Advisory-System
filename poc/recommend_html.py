@@ -168,7 +168,10 @@ if (cell.south !== undefined) {
   map.setView([DATA.lat, DATA.lon], 7);
 }
 const grid = DATA.grid || {};
-const markerNote = grid.marker || "Score is for this ~18 km climate cell, not a backyard.";
+const markerNote = grid.marker
+  || (grid.label === "1 km"
+    ? "Score is for this ~1 km cell, not a backyard."
+    : "Score is for this climate cell, not a backyard.");
 L.marker([DATA.lat, DATA.lon]).addTo(map)
   .bindPopup(markerNote);
 
@@ -198,32 +201,37 @@ if (other > 0.02) {
 
 const notes = ((DATA.satellite && DATA.satellite.notes) || []).map(n => `<div class="note">${n}</div>`).join("");
 const blocked = DATA.satellite && DATA.satellite.blocked;
-const futureMeta = DATA.future || {};
 let cards = "";
 if (blocked) {
   cards = `<p class="warn">No planting list — satellite says this pin is not plantable.</p>`;
 } else if (!DATA.picks || !DATA.picks.length) {
   cards = `<p class="note">No species cleared the record-likeness + goal filters.</p>`;
 } else {
+  const hasFi = DATA.picks.some(p => (p.feature_importance || []).length);
+  if (hasFi && DATA.importance_caption) {
+    cards += `<p class="note">${DATA.importance_caption}</p>`;
+  }
   DATA.picks.forEach((p, i) => {
+    const showBadge = p.confidence && p.confidence !== "Looks like records";
     const risky = (p.confidence === "Risky" || p.confidence === "Weak likeness") ? " risky" : "";
-    const fut = (p.p_2050 === null || p.p_2050 === undefined)
+    const badge = showBadge ? `<span class="badge${risky}">${p.confidence}</span>` : "";
+    const futBar = (p.p_2050 === null || p.p_2050 === undefined)
       ? ""
-      : `<div class="row"><span>2050</span><div class="track future"><i style="width:${clamp01(p.p_2050)*100}%"></i></div><span class="pct">${pct(p.p_2050)}</span></div>
-         <div class="future-line">${p.future_note || ""}</div>`;
+      : `<div class="row"><span>2050</span><div class="track future"><i style="width:${clamp01(p.p_2050)*100}%"></i></div><span class="pct">${pct(p.p_2050)}</span></div>`;
+    const futNote = p.future_note
+      ? `<div class="future-line">${p.future_note}</div>`
+      : "";
     const fi = (p.feature_importance || []).slice(0, 5);
-    const fiLead = DATA.importance_caption
-      || "Species-wide XGBoost gain (not this pin):";
     const fiHtml = fi.length
-      ? `<p class="fi">${fiLead} ${fi.map(x => x.label + " " + Math.round((x.share||0)*100) + "%").join(" · ")}</p>`
+      ? `<p class="fi">${fi.map(x => x.label + " " + Math.round((x.share||0)*100) + "%").join(" · ")}</p>`
       : "";
     cards += `<article class="card">
-      <span class="badge${risky}">${p.confidence || ""}</span>
+      ${badge}
       <h2>${i+1}. ${p.common_name}</h2>
       <div class="latin">${p.species}</div>
       <div class="row"><span>Today</span><div class="track today"><i style="width:${clamp01(p.p)*100}%"></i></div><span class="pct">${pct(p.p)}</span></div>
-      ${fut}
-      <p class="why">${p.reason || ""}</p>
+      ${futBar}
+      ${futNote}
       ${fiHtml}
       <p class="care">${p.native || ""} ${p.care || ""}</p>
       ${p.warning ? `<p class="warn">${p.warning}</p>` : ""}
@@ -239,23 +247,22 @@ if (avoid.length) {
 }
 
 const disclaimer = DATA.disclaimer
-  || "p is how much this climate–soil cell looks like recorded sites of that species, not a planting permit.";
+  || "p = record-likeness vs other listed trees. Not a permit. 2050 = new BIO only. Land cover is a filter.";
+const gridNote = grid.note
+  || (grid.label === "1 km"
+    ? "One ~1 km cell. Yard shade, frost, and watering are not in the model."
+    : "The box on the map is one climate cell. Shade, frost pockets and watering in a yard are not in the model.");
 
 document.getElementById("panel").innerHTML = `
   <div class="status ${status}">${status.replace("_", " ")} cell</div>
   <p>${DATA.site || ""}</p>
-  <p class="note">${grid.note || "The box on the map is one 1/6° cell (~18 km). Shade, frost pockets and watering in a yard are not in the model."}</p>
+  <p class="note">${gridNote}</p>
   ${mixHtml ? `<div class="mix">${mixHtml}</div><div class="legend">${legend}</div>` : ""}
   ${notes}
   ${cards}
   ${avoidHtml}
   <footer>
     ${disclaimer}
-    ${futureMeta.available
-      ? "2050 uses CMIP6 " + (futureMeta.ssp || "ssp245") + " " + (futureMeta.period || "2041–2060") + "; soil and elevation stay as they are. Same XGBoost models, new BIO values — not a second training run."
-      : "2050 bars omitted (future climate GeoTIFF not on disk)."}
-    Feature-gain lines are species-wide XGBoost gain, not a local explanation of this pin.
-    Tree cover is a satellite filter, not an XGBoost feature.
   </footer>
 `;
 </script>

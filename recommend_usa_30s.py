@@ -76,9 +76,8 @@ DO_NOT_PLANT_RE = re.compile(
     r"\b(invasive|naturalised|naturalized|noxious)\b", re.I
 )
 SCORE_DISCLAIMER = (
-    "p is record-likeness: how much this 1 km cell looks like GBIF records of "
-    "that species versus other listed trees (target-group background). It is "
-    "not a planting permit, survival odds, or a backyard shade model."
+    "p = record-likeness vs other listed trees. Not a permit. "
+    "2050 = new BIO only. Land cover is a filter."
 )
 XGB_IMPORTANCE_CAPTION = (
     "Species-wide XGBoost gain (all US training cells), not why this pin scored:"
@@ -152,12 +151,8 @@ REGION_TO_NATIVE = {
 }
 GRID_UI = {
     "label": "1 km",
-    "marker": "Score is for this ~1 km cell vs other listed trees, not a backyard.",
-    "note": (
-        "The box is one 30-arc-second cell (~1 km). "
-        + SCORE_DISCLAIMER
-        + " Yard shade, frost pockets and watering are not in the model."
-    ),
+    "marker": "Score is for this ~1 km cell, not a backyard.",
+    "note": "One ~1 km cell. Yard shade, frost, and watering are not in the model.",
 }
 
 
@@ -234,15 +229,12 @@ def future_note(p, p_2050):
         return ""
     delta = p_2050 - p
     if p_2050 >= 0.70 and delta >= -0.05:
-        return "2050 BIO still looks like this species' records (ssp245, one GCM)."
+        return ""
     if delta <= -0.15:
-        return (
-            f"Record-likeness drops by {abs(delta):.0%} under 2050 BIO "
-            "(same soil; not a second training run)."
-        )
+        return f"Record-likeness drops {abs(delta):.0%} under 2050 BIO."
     if delta >= 0.10:
-        return f"Record-likeness rises by {delta:.0%} under 2050 BIO as this cell warms."
-    return "2050 BIO barely moves this species' record-likeness."
+        return f"Record-likeness rises {delta:.0%} under 2050 BIO."
+    return ""
 
 
 def sample_predictors(lat, lon):
@@ -517,59 +509,6 @@ def site_plain_language(names, values):
     return "This location looks " + ", ".join(bits) + "."
 
 
-def reason_for(species, traits, p, names, values):
-    common = traits.get("common_name") or species
-    t = None
-    i = feat_match(names, "bio_1.tif")
-    if i is not None and np.isfinite(values[i]):
-        t = float(values[i])
-    rain = None
-    i = feat_match(names, "bio_12.tif")
-    if i is not None and np.isfinite(values[i]):
-        rain = float(values[i])
-    drain = None
-    i = feat_match(names, "drainage_0-30cm")
-    if i is not None and np.isfinite(values[i]):
-        drain = float(values[i])
-
-    climate_bit = "your climate"
-    if t is not None and rain is not None:
-        if t >= 18 and rain < 500:
-            climate_bit = "your warm, dry climate"
-        elif t >= 18:
-            climate_bit = "your warm climate"
-        elif t < 8:
-            climate_bit = "your cool climate"
-        elif rain < 450:
-            climate_bit = "your relatively dry climate"
-        else:
-            climate_bit = "your climate"
-
-    drain_bit = ""
-    if drain is not None:
-        if drain >= 5.5:
-            drain_bit = " and well-drained ground"
-        elif drain < 3.5:
-            drain_bit = ", though the soil here holds water"
-
-    if p >= 0.70:
-        lead = (
-            f"{common}: this 1 km cell looks more like GBIF records of this "
-            f"species than like other listed trees, given {climate_bit}{drain_bit}."
-        )
-    elif p >= 0.50:
-        lead = (
-            f"{common}: this cell is somewhat like recorded sites of this species "
-            f"({climate_bit}{drain_bit}). Not a planting permit."
-        )
-    else:
-        lead = (
-            f"{common}: only a weak resemblance to recorded sites "
-            f"({climate_bit}{drain_bit})."
-        )
-    return lead
-
-
 def assert_conus(lat, lon):
     grid = read_grid()
     west, south, east, north = grid["bbox"]
@@ -607,9 +546,11 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
         )
     missing_note = ""
     if missing:
+        labels = [plain_layer_name(n) for n in missing[:6]]
+        extra = "…" if len(missing) > 6 else ""
         missing_note = (
-            f"{len(missing)} soil/terrain layer(s) have no value in this 1 km cell "
-            f"({', '.join(missing[:6])}{'…' if len(missing) > 6 else ''}); "
+            f"{len(missing)} layer(s) have no value here "
+            f"({', '.join(labels)}{extra}); "
             + backend.missing_layer_note
         )
 
@@ -620,16 +561,19 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
         files=SATELLITE_FILES,
         missing_hint=(
             "No USA 1 km satellite filters yet — run "
-            "python data/scripts/satellite_rasters_usa_30s.py "
-            "(do not use the 18 km data/satellite/ stack). Skipping water/city checks."
-        ),
-        grain_note=(
-            "Satellite mix is ESA WorldCover class fractions on this 1 km cell, "
-            "not the global 18 km filters."
+            "python data/scripts/satellite_rasters_usa_30s.py. "
+            "Skipping water/city checks."
         ),
     )
     if missing_note:
         sat.setdefault("notes", []).insert(0, missing_note)
+    # Mix bar already shows built/crop fractions; keep only blockers and gaps.
+    sat["notes"] = [
+        n for n in sat.get("notes") or []
+        if "18 km" not in n
+        and "built-up city" not in n
+        and "largely cropland" not in n
+    ]
     site = site_plain_language(names, values)
     cell = tag_cell_status(cell_geometry(lat, lon), sat)
 
@@ -700,7 +644,6 @@ def recommend(lat, lon, goal="any", sun="any", top=TOP_N, min_auc=MIN_AUC_DEFAUL
             "n_folds": int(rec.n_folds_usable),
             "rank_score": p * float(rec.auc),
             "confidence": confidence(p, float(rec.auc), int(rec.n_folds_usable)),
-            "reason": reason_for(species, traits, p, names, values),
             "feature_importance": backend.importance(rec, names, values),
             "care": "" if str(traits.get("care") or "").lower() in {"", "nan", "none"} else traits.get("care"),
             "warning": "" if str(traits.get("warning") or "").lower() in {"", "nan", "none"} else traits.get("warning"),
@@ -764,15 +707,15 @@ def print_report(result, address=None):
     mix_bits = []
     for key in ("water", "snow", "built", "crop", "tree"):
         val = mix.get(key)
-        if val is not None and np.isfinite(val):
+        if val is not None and np.isfinite(val) and val >= 0.02:
             mix_bits.append(f"{key} {val:.0%}")
     if mix_bits:
-        print("Satellite mix: " + ", ".join(mix_bits))
+        print("Land cover: " + ", ".join(mix_bits))
     for note in result["satellite"].get("notes", []):
-        print(f"Satellite: {note}")
+        print(note)
     fut = result.get("future") or {}
     if fut.get("available"):
-        print("2050: 1 km BIO delta (ssp245 2041–2060); soil and terrain unchanged")
+        print("2050: new BIO only; soil and terrain unchanged")
     else:
         print("2050: skipped — " + (fut.get("note") or ""))
     if result["satellite"].get("blocked"):
@@ -788,23 +731,25 @@ def print_report(result, address=None):
         print()
         print(f"Top {len(result['picks'])} of {result['n_models']} models (invasive/naturalised dropped):")
         print()
+        caption = result.get("importance_caption") or ""
+        if caption:
+            print(caption)
+        print()
         for i, pick in enumerate(result["picks"], 1):
             print(f"{i}. {pick['common_name']}  ({pick['species']})")
             print(
-                f"   {pick['confidence']}   today {pick['p']:.0%}",
+                f"   today {pick['p']:.0%}",
                 end="",
             )
             if pick.get("p_2050") is not None:
                 print(f"   2050 {pick['p_2050']:.0%}", end="")
             print(f"   model AUC {pick['auc']:.2f}")
-            print(f"   {pick['reason']}")
             if pick.get("future_note"):
-                print(f"   2050: {pick['future_note']}")
+                print(f"   {pick['future_note']}")
             fi = pick.get("feature_importance") or []
             if fi:
                 bits = [f"{row['label']} {row['share']:.0%}" for row in fi[:5]]
-                caption = result.get("importance_caption") or ""
-                print("   " + caption + " " + ", ".join(bits))
+                print("   " + " · ".join(bits))
             print(f"   {pick['native']}")
             if pick["care"]:
                 print(f"   Care: {pick['care']}")
@@ -822,10 +767,13 @@ def print_report(result, address=None):
             )
         print()
 
+    print(result.get("disclaimer") or SCORE_DISCLAIMER)
+    print()
+
 
 def parse_args(argv=None):
     p = argparse.ArgumentParser(
-        description="Recommend trees from the USA 1 km SDMs (not the 18 km POC)."
+        description="Recommend trees from the USA 1 km SDMs."
     )
     p.add_argument(
         "--model",
