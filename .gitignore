@@ -169,6 +169,8 @@ data/species_occurrences
 # USA 1 km boosters; keep metrics/feature names if present
 models_usa_30s/*.json
 data/models_usa_30s/*.json
+data/models_usa_30s_shared*/
+profiling/rocprof_xgb/*trace.csv
 
 # USA 1 km DeepMaxent checkpoint (~10 MB of weights); same deal as the
 # boosters — metrics.csv and feature_names.txt stay tracked as provenance.

@@ -15,6 +15,10 @@ Occurrences: cleaned + thinned 1 km table from clean_species_usa_30s.py.
 Background: target-group — cells where *other* list trees were recorded,
 not uniform land (which teaches "near a road").
 
+Shared-universe and 1:1 both histogram-bin X once (QuantileDMatrix).
+Folds reuse those quantile cuts (ref=). Shared-universe also reuses the
+matrix across species (set_label). Same path for --device cuda and cpu.
+
 Default species list is data/usa_tree_species_seed.csv (few, better).
 Grow later with --species-list data/usa_tree_species_list.csv after
 re-cleaning the full checklist.
@@ -24,7 +28,9 @@ from __future__ import annotations
 
 import argparse
 import os
+import resource
 import sys
+import time
 
 import numpy as np
 import pandas as pd
@@ -360,12 +366,189 @@ def xgb_params_for_n(n_samples, device):
     return params
 
 
-def _make_classifier(n_estimators, n_samples, device, early_stopping_rounds=None):
+def _native_train_params(n_samples, device, scale_pos_weight=None):
+    """sklearn names → xgb.train names. Same dict on CPU and GPU."""
+    params = xgb_params_for_n(n_samples, device)
+    if scale_pos_weight is not None:
+        params["scale_pos_weight"] = float(scale_pos_weight)
+    params["seed"] = params.pop("random_state")
+    n_jobs = params.pop("n_jobs")
+    # sklearn n_jobs=0 means all cores; xgb.train nthread=0 can hang.
+    if n_jobs:
+        params["nthread"] = int(n_jobs)
+    return params
+
+
+def make_binned_dmatrix(X, y, device, ref=None):
+    """Histogram-bin X once. CPU and GPU both use QuantileDMatrix + device=.
+
+    Shared-universe training sketches X once. Each species swaps labels;
+    each fold ingests its rows with ref= so cuts are not recomputed.
+    """
+    X = np.ascontiguousarray(X, dtype=np.float32)
+    y = None if y is None else np.ascontiguousarray(y, dtype=np.float32)
+    kwargs = dict(
+        data=X,
+        label=y,
+        max_bin=int(XGB_GPU_PARAMS["max_bin"]),
+        missing=np.nan,
+    )
+    if ref is not None:
+        kwargs["ref"] = ref
+    try:
+        return xgb.QuantileDMatrix(device=device, **kwargs)
+    except TypeError:
+        return xgb.QuantileDMatrix(**kwargs)
+
+
+def _bind_labels(binned, y, X, device):
+    y = np.ascontiguousarray(y, dtype=np.float32)
+    try:
+        binned.set_label(y)
+        return binned
+    except (xgb.core.XGBoostError, ValueError, TypeError, AttributeError):
+        return make_binned_dmatrix(X, y, device, ref=binned)
+
+
+def _fold_train_eval(binned, train_idx, test_idx, X, y, device):
+    """Train/eval matrices for one fold, reusing histogram cuts from binned.
+
+    QuantileDMatrix.slice is unsupported. Ingest fold rows with ref= so the
+    quantile sketch of X is not recomputed. Eval must ref the *training*
+    matrix (XGBoost requirement).
+    """
+    dtrain = make_binned_dmatrix(
+        X[train_idx], y[train_idx], device, ref=binned,
+    )
+    dtest = make_binned_dmatrix(
+        X[test_idx], y[test_idx], device, ref=dtrain,
+    )
+    return dtrain, dtest
+
+
+def _train_booster(
+    dtrain,
+    n_estimators,
+    n_samples,
+    device,
+    early_stopping_rounds=None,
+    scale_pos_weight=None,
+    dval=None,
+):
+    params = _native_train_params(n_samples, device, scale_pos_weight)
+    kwargs = dict(
+        params=params,
+        dtrain=dtrain,
+        num_boost_round=int(n_estimators),
+        verbose_eval=False,
+    )
+    if dval is not None:
+        kwargs["evals"] = [(dval, "eval")]
+    if early_stopping_rounds:
+        kwargs["early_stopping_rounds"] = int(early_stopping_rounds)
+    return xgb.train(**kwargs)
+
+
+def _trees_used(bst, n_estimators):
+    best = getattr(bst, "best_iteration", None)
+    if best is None:
+        return int(n_estimators)
+    return int(best) + 1
+
+
+def _classifier_from_booster(
+    bst, n_estimators, n_samples, device, scale_pos_weight=None,
+):
+    params = xgb_params_for_n(n_samples, device)
+    if scale_pos_weight is not None:
+        params["scale_pos_weight"] = float(scale_pos_weight)
+    model = xgb.XGBClassifier(n_estimators=int(n_estimators), **params)
+    model._Booster = bst
+    model.n_classes_ = 2
+    return model
+
+
+def _make_classifier(
+    n_estimators, n_samples, device, early_stopping_rounds=None,
+    scale_pos_weight=None,
+):
+    params = xgb_params_for_n(n_samples, device)
+    if scale_pos_weight is not None:
+        params["scale_pos_weight"] = float(scale_pos_weight)
     return xgb.XGBClassifier(
         n_estimators=n_estimators,
         early_stopping_rounds=early_stopping_rounds,
-        **xgb_params_for_n(n_samples, device),
+        **params,
     )
+
+
+def train_xy_sdm(
+    X, y, coords, device, scale_pos_weight=None, groups=None, binned=None,
+):
+    """5-fold spatial-block CV + final fit on a prepared (X, y).
+
+    If binned is a QuantileDMatrix for this X (shared-universe), labels are
+    swapped in place so CPU and GPU clocks share the same sketch-once path.
+    """
+    X = np.ascontiguousarray(X, dtype=np.float32)
+    y = np.ascontiguousarray(y, dtype=np.float32)
+    if groups is None:
+        groups = spatial_block_ids(coords)
+    splits = spatial_cv_splits(X, y, groups)
+    auc_scores = []
+    best_ntrees = []
+    n_folds = 0 if splits is None else len(splits)
+    if splits is None:
+        return None, float("nan"), 0, 0, n_folds
+
+    if binned is None:
+        binned = make_binned_dmatrix(X, y, device)
+    else:
+        binned = _bind_labels(binned, y, X, device)
+
+    n_usable = 0
+    n_samples = len(y)
+    for train_idx, test_idx in splits:
+        y_train, y_test = y[train_idx], y[test_idx]
+        if len(np.unique(y_train)) < 2 or len(np.unique(y_test)) < 2:
+            continue
+        n_usable += 1
+        dtrain, dtest = _fold_train_eval(
+            binned, train_idx, test_idx, X, y, device,
+        )
+        bst = _train_booster(
+            dtrain,
+            n_estimators=MAX_BOOST_ROUNDS,
+            n_samples=n_samples,
+            device=device,
+            early_stopping_rounds=EARLY_STOPPING_ROUNDS,
+            scale_pos_weight=scale_pos_weight,
+            dval=dtest,
+        )
+        trees = _trees_used(bst, MAX_BOOST_ROUNDS)
+        # Booster.predict uses every round unless told otherwise; score the
+        # early-stopped model, like predict_proba did.
+        pred = bst.predict(dtest, iteration_range=(0, trees))
+        auc_scores.append(roc_auc_score(y_test, pred))
+        best_ntrees.append(trees)
+
+    mean_auc = float(np.mean(auc_scores)) if auc_scores else float("nan")
+    if not best_ntrees:
+        return None, mean_auc, 0, n_usable, n_folds
+
+    n_trees = max(int(np.median(best_ntrees)), 10)
+    final_bst = _train_booster(
+        binned,
+        n_estimators=n_trees,
+        n_samples=n_samples,
+        device=device,
+        early_stopping_rounds=None,
+        scale_pos_weight=scale_pos_weight,
+    )
+    final_model = _classifier_from_booster(
+        final_bst, n_trees, n_samples, device, scale_pos_weight,
+    )
+    return final_model, mean_auc, n_trees, n_usable, n_folds
 
 
 def train_species_sdm(presence_coords, absence_coords, predictors, device):
@@ -379,53 +562,7 @@ def train_species_sdm(presence_coords, absence_coords, predictors, device):
     X = predictors.sample(coords)
     valid = ~np.isnan(X).any(axis=1)
     X, y, coords = X[valid], y[valid], coords[valid]
-    X = np.ascontiguousarray(X, dtype=np.float32)
-    y = np.ascontiguousarray(y, dtype=np.float32)
-
-    groups = spatial_block_ids(coords)
-    splits = spatial_cv_splits(X, y, groups)
-    auc_scores = []
-    best_ntrees = []
-    n_folds = 0 if splits is None else len(splits)
-    if splits is None:
-        return None, float("nan"), 0, 0, n_folds
-
-    n_usable = 0
-    n_samples = len(y)
-    for train_idx, test_idx in splits:
-        y_train, y_test = y[train_idx], y[test_idx]
-        if len(np.unique(y_train)) < 2 or len(np.unique(y_test)) < 2:
-            continue
-        n_usable += 1
-        model = _make_classifier(
-            n_estimators=MAX_BOOST_ROUNDS,
-            n_samples=n_samples,
-            device=device,
-            early_stopping_rounds=EARLY_STOPPING_ROUNDS,
-        )
-        model.fit(
-            X[train_idx],
-            y_train,
-            eval_set=[(X[test_idx], y_test)],
-            verbose=False,
-        )
-        pred = model.predict_proba(X[test_idx])[:, 1]
-        auc_scores.append(roc_auc_score(y_test, pred))
-        best_ntrees.append(int(model.best_iteration) + 1)
-
-    mean_auc = float(np.mean(auc_scores)) if auc_scores else float("nan")
-    if not best_ntrees:
-        return None, mean_auc, 0, n_usable, n_folds
-
-    n_trees = max(int(np.median(best_ntrees)), 10)
-    final_model = _make_classifier(
-        n_estimators=n_trees,
-        n_samples=n_samples,
-        device=device,
-        early_stopping_rounds=None,
-    )
-    final_model.fit(X, y, verbose=False)
-    return final_model, mean_auc, n_trees, n_usable, n_folds
+    return train_xy_sdm(X, y, coords, device)
 
 
 def load_occurrence_table(path, grid):
@@ -479,11 +616,31 @@ def parse_args():
         action="store_true",
         help="do not retrain species that already have a JSON in --model-dir",
     )
+    parser.add_argument(
+        "--shared-universe",
+        action="store_true",
+        help="batch training: one X for every unique 1 km tree cell "
+             "(~4.5e5 rows), binary y per species, scale_pos_weight. "
+             "X is histogram-binned once (CPU and GPU). AUC is not "
+             "comparable to the 1:1 absence subsample used by the "
+             "shipped fleet.",
+    )
+    parser.add_argument(
+        "--n-jobs",
+        type=int,
+        default=0,
+        help="XGBoost / OpenMP threads. 0 = all visible CPUs. Use 8 for "
+             "the workstation-vs-MI300X slide.",
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+    t0 = time.perf_counter()
+    if args.n_jobs:
+        XGB_GPU_PARAMS["n_jobs"] = int(args.n_jobs)
+        os.environ["OMP_NUM_THREADS"] = str(int(args.n_jobs))
     species_list_path = FULL_LIST if args.full_list else args.species_list
     os.makedirs(args.model_dir, exist_ok=True)
     metrics_path = os.path.join(args.model_dir, "metrics.csv")
@@ -491,6 +648,7 @@ def main():
 
     grid = read_grid()
     occ = load_occurrence_table(args.occurrences, grid)
+    t_after_occ = time.perf_counter()
     if args.all_species_in_file:
         species_order = list(occ["species"].drop_duplicates())
         print(f"Species: every name in {args.occurrences} ({len(species_order)})")
@@ -499,6 +657,7 @@ def main():
         print(f"Species list: {species_list_path}  ({len(species_order)} names)")
 
     predictors = Usa30sPredictors(collect_predictor_paths())
+    t_after_rasters = time.perf_counter()
     n_bio = sum(1 for n in predictors.names if "bio_" in n)
     n_soil = sum(1 for n in predictors.names if n.endswith("_30s.tif"))
     n_extra = sum(
@@ -516,6 +675,28 @@ def main():
         handle.write("\n".join(predictors.names) + "\n")
 
     pool_all = occ[["latitude", "longitude"]].to_numpy(dtype=np.float64)
+    X_univ = None
+    univ_coords = None
+    univ_cell_ids = None
+    univ_groups = None
+    univ_binned = None
+    if args.shared_universe:
+        univ_coords = predictors.unique_pixel_coords(pool_all)
+        X_univ = predictors.sample(univ_coords)
+        ok = ~np.isnan(X_univ).any(axis=1)
+        X_univ, univ_coords = X_univ[ok], univ_coords[ok]
+        X_univ = np.ascontiguousarray(X_univ, dtype=np.float32)
+        univ_cell_ids = _cell_ids(predictors, univ_coords)
+        univ_groups = spatial_block_ids(univ_coords)
+        univ_binned = make_binned_dmatrix(
+            X_univ,
+            np.zeros(len(X_univ), dtype=np.float32),
+            args.device,
+        )
+        print(
+            f"Shared universe: {len(X_univ):,} unique tree cells  "
+            f"(one X, binary y per species, QuantileDMatrix device={args.device})"
+        )
     metrics = []
     saved_aucs = []
     n_skip = {
@@ -534,6 +715,8 @@ def main():
             prev_by_species[rec["species"]] = rec
 
     n_done = 0
+    n_fit = 0
+    t_fit = 0.0
     for species in species_order:
         if args.skip_existing:
             model_path = os.path.join(
@@ -600,71 +783,116 @@ def main():
                 break
             continue
 
-        presence = subsample_coords(presence, MAX_PRESENCE_CELLS, rng)
-        others = occ.loc[
-            occ["species"] != species, ["latitude", "longitude"]
-        ].to_numpy(dtype=np.float64)
-        try:
-            absence = target_group_absences(
-                presence,
-                others if len(others) else pool_all,
-                n_absences=min(len(presence), MAX_ABSENCES),
-                rng=rng,
-                predictors=predictors,
-            )
-        except ValueError as exc:
-            n_skip["no_background"] += 1
-            print(f"{species:32s}  SKIP background ({exc})")
-            metrics.append(
-                dict(
-                    species=species,
-                    n_records=n_records,
-                    n_unique_cells=n_cells,
-                    n_absences=0,
-                    auc=np.nan,
-                    n_trees=0,
-                    n_folds_usable=0,
-                    n_folds=0,
-                    model_path="",
-                    status="skip_no_background",
+        if args.shared_universe:
+            pos_ids = _cell_ids(predictors, presence)
+            y_univ = np.isin(univ_cell_ids, pos_ids).astype(np.float32)
+            n_pos = int(y_univ.sum())
+            n_neg = int(len(y_univ) - n_pos)
+            absence = None
+            n_absences = n_neg
+            spw = n_neg / max(n_pos, 1)
+            try:
+                t_fit0 = time.perf_counter()
+                model, auc, n_trees, n_usable, n_folds = train_xy_sdm(
+                    X_univ,
+                    y_univ,
+                    univ_coords,
+                    args.device,
+                    scale_pos_weight=spw,
+                    groups=univ_groups,
+                    binned=univ_binned,
                 )
-            )
-            n_done += 1
-            if args.max_species and n_done >= args.max_species:
-                break
-            continue
-
-        try:
-            model, auc, n_trees, n_usable, n_folds = train_species_sdm(
-                presence, absence, predictors, args.device
-            )
-        except Exception as exc:
-            print(f"{species:32s}  SKIP train ({type(exc).__name__}: {exc})")
-            metrics.append(
-                dict(
-                    species=species,
-                    n_records=n_records,
-                    n_unique_cells=n_cells,
-                    n_absences=len(absence),
-                    auc=np.nan,
-                    n_trees=0,
-                    n_folds_usable=0,
-                    n_folds=0,
-                    model_path="",
-                    status="skip_train_error",
+                t_fit += time.perf_counter() - t_fit0
+                n_fit += 1
+            except Exception as exc:
+                print(f"{species:32s}  SKIP train ({type(exc).__name__}: {exc})")
+                metrics.append(
+                    dict(
+                        species=species,
+                        n_records=n_records,
+                        n_unique_cells=n_cells,
+                        n_absences=n_absences,
+                        auc=np.nan,
+                        n_trees=0,
+                        n_folds_usable=0,
+                        n_folds=0,
+                        model_path="",
+                        status="skip_train_error",
+                    )
                 )
-            )
-            n_done += 1
-            if args.max_species and n_done >= args.max_species:
-                break
-            continue
+                n_done += 1
+                if args.max_species and n_done >= args.max_species:
+                    break
+                continue
+        else:
+            presence = subsample_coords(presence, MAX_PRESENCE_CELLS, rng)
+            others = occ.loc[
+                occ["species"] != species, ["latitude", "longitude"]
+            ].to_numpy(dtype=np.float64)
+            try:
+                absence = target_group_absences(
+                    presence,
+                    others if len(others) else pool_all,
+                    n_absences=min(len(presence), MAX_ABSENCES),
+                    rng=rng,
+                    predictors=predictors,
+                )
+            except ValueError as exc:
+                n_skip["no_background"] += 1
+                print(f"{species:32s}  SKIP background ({exc})")
+                metrics.append(
+                    dict(
+                        species=species,
+                        n_records=n_records,
+                        n_unique_cells=n_cells,
+                        n_absences=0,
+                        auc=np.nan,
+                        n_trees=0,
+                        n_folds_usable=0,
+                        n_folds=0,
+                        model_path="",
+                        status="skip_no_background",
+                    )
+                )
+                n_done += 1
+                if args.max_species and n_done >= args.max_species:
+                    break
+                continue
+            n_absences = len(absence)
+            try:
+                t_fit0 = time.perf_counter()
+                model, auc, n_trees, n_usable, n_folds = train_species_sdm(
+                    presence, absence, predictors, args.device
+                )
+                t_fit += time.perf_counter() - t_fit0
+                n_fit += 1
+            except Exception as exc:
+                print(f"{species:32s}  SKIP train ({type(exc).__name__}: {exc})")
+                metrics.append(
+                    dict(
+                        species=species,
+                        n_records=n_records,
+                        n_unique_cells=n_cells,
+                        n_absences=n_absences,
+                        auc=np.nan,
+                        n_trees=0,
+                        n_folds_usable=0,
+                        n_folds=0,
+                        model_path="",
+                        status="skip_train_error",
+                    )
+                )
+                n_done += 1
+                if args.max_species and n_done >= args.max_species:
+                    break
+                continue
 
         auc_txt = "nan " if np.isnan(auc) else f"{auc:.3f}"
         row = dict(
             species=species,
             n_records=n_records,
             n_unique_cells=n_cells,
-            n_absences=len(absence),
+            n_absences=n_absences,
             auc=auc,
             n_trees=n_trees,
             n_folds_usable=n_usable,
@@ -723,6 +951,21 @@ def main():
     )
     print(f"Metrics: {metrics_path}")
     print("Global 10-arc-minute models in data/models/ were not changed.")
+    elapsed = time.perf_counter() - t0
+    rss_kb = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+    t_occ = t_after_occ - t0
+    t_rasters = t_after_rasters - t_after_occ
+    t_other = elapsed - t_occ - t_rasters - t_fit
+    print(
+        f"Wall {elapsed:.1f} s  peak RSS {rss_kb} KB  "
+        f"device={args.device}  species={n_done}"
+    )
+    print(
+        f"Timing  device={args.device}  n_jobs={XGB_GPU_PARAMS['n_jobs']}  "
+        f"occ={t_occ:.1f}s  rasters={t_rasters:.1f}s  fit={t_fit:.1f}s "
+        f"({n_fit} trained, 5-fold+final)  other={t_other:.1f}s  "
+        f"wall={elapsed:.1f}s"
+    )
 
 
 if __name__ == "__main__":

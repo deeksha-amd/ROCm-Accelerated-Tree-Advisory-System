@@ -24,7 +24,9 @@ Run every command from this directory (`hackathon_2026/`), with the venv on:
 source venv/bin/activate
 ```
 
-Training needs a GPU (`device=cuda`, ROCm on MI300X). Recommend and maps run on CPU.
+Train with `--device cuda` on MI300X (or `--device cpu`). A pin is one 61-vector —
+`recommend_usa_30s.py` scores on CPU. Maps default to CPU; pass `--device cuda` to
+batch-score a bbox.
 
 ---
 
@@ -118,13 +120,20 @@ python recommend_usa_30s.py --address "Austin, Texas" --goal shade --html maps/a
 python recommend_usa_30s.py --model deepmaxent --lat 30.2672 --lon -97.7431 --goal shade
 ```
 
+Each booster is loaded with `load_booster(..., device="cpu")`. For that pin the
+61-vector is scored as `p = predict_proba(x)[0, 1]` (sigmoid of the tree-sum
+log-odds). Species with `p < 0.30` are dropped; the rest rank by `p * auc`.
+Invasive and naturalised trees (chinaberry, tree-of-heaven, …) are trained so
+the model knows them, then **dropped from the top-5** and listed under “do not
+plant”. Default recommend gate is AUC **≥ 0.70**.
+
 Open `maps/austin.html`. The page shows lat/lon, a 1 km cell, today vs 2050
 record-likeness bars, and a per-layer breakdown that depends on the model:
 `--model xgboost` reports **species-wide** gain (not a local explanation of the
 pin), while `--model deepmaxent` reports a **local sensitivity at that pin** —
-`|d lambda / d z|`, the score change per 1 SD of each layer. Invasive and
-naturalised trees (chinaberry, tree-of-heaven, …) are trained so the model
-knows them, then **dropped from the top-5** and listed under “do not plant”.
+`|d lambda / d z|`, the score change per 1 SD of each layer. The XGBoost demo
+reads the **1:1** JSON in `data/models_usa_30s/` (255 saved, mean AUC 0.888) —
+not a `--shared-universe` speed-run.
 
 CONUS only. Pins outside the lower-48 envelope are rejected.
 
@@ -142,10 +151,13 @@ python data/scripts/satellite_rasters_usa_30s.py --smoke   # Austin + Portland t
 # python data/scripts/satellite_rasters_usa_30s.py         # full CONUS, slower
 ```
 
-One-species map (default live oak, south-central US crop):
+One-species map (default live oak, south-central US crop — a bbox, not the
+full 7020×3060 stack):
 
 ```bash
 python suitability_maps_usa_30s.py --species "Quercus virginiana"
+# optional GPU batches (host NumPy → inplace_predict; CPU is often faster for one booster)
+# python suitability_maps_usa_30s.py --species "Quercus virginiana" --device cuda --batch-rows 1000000
 ```
 
 Open `maps/Quercus_virginiana_usa_30s.html`.
@@ -155,6 +167,16 @@ Open `maps/Quercus_virginiana_usa_30s.html`.
 ## USA 1 km — train
 
 Occurrences must be cleaned onto the same 1 km grid the rasters use.
+
+There are **two protocols**. Austin scores the **1:1** fleet in
+`data/models_usa_30s/`. Do **not** overwrite that folder with
+`--shared-universe` JSON.
+
+### Demo fleet (1:1 absences)
+
+Each species gets its presence cells plus `min(n_presence, 25000)` other
+listed-tree cells. Typical X is a few thousand rows. Shipped: **255 saved**,
+mean spatial-block AUC **0.888**. `--device` defaults to `cuda`.
 
 ```bash
 # Short list first (~32 well-known trees)
@@ -166,9 +188,30 @@ python clean_species_usa_30s.py --species-list data/usa_tree_species_list.csv
 python xgboost_training_usa_30s.py --full-list --skip-existing
 ```
 
-`--skip-existing` does not overwrite a saved booster. Drop it only if you intend to retrain.
+`--skip-existing` keeps a booster only when the JSON exists **and**
+`metrics.csv` says `status=saved`. Drop the flag only if you intend to retrain.
 
-Needs ~6 GB RAM for the 61-layer stack. Writes `data/models_usa_30s/*.json` and `data/models_usa_30s/metrics.csv`. Does not touch `poc/` or `data/models/`.
+### Speed-run (`--shared-universe`)
+
+One X of unique 1 km tree cells (**245,276** after dropping NaN rows). Each
+species is a 0/1 label on that table, with `scale_pos_weight`. X is
+histogram-binned once (`QuantileDMatrix`); folds reuse those cuts, on CPU and
+GPU alike. GPU histogram work is real; 1:1 samples are launch-bound. Clocked on
+MI300X vs 8 CPU threads: fit **458 s vs 2414 s (5.3×)**, wall 490 s vs 2446 s,
+mean spatial-block AUC **0.876** GPU / **0.877** CPU (**248 saved**). That AUC
+is **not** comparable to the 1:1 fleet. Write to a **different** `--model-dir`.
+
+```bash
+python xgboost_training_usa_30s.py --full-list --shared-universe --device cuda \
+  --model-dir data/models_usa_30s_shared
+python xgboost_training_usa_30s.py --full-list --shared-universe --device cpu --n-jobs 8 \
+  --model-dir data/models_usa_30s_shared_cpu
+```
+
+`--n-jobs 8` is the workstation comparison; `0` (default) uses all visible CPUs.
+The trainer prints Wall / peak RSS.
+
+Needs ~6 GB RAM for the 61-layer stack. Does not touch `poc/` or `data/models/`.
 
 ---
 

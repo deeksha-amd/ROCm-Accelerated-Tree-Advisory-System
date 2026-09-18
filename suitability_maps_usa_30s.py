@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 
 import numpy as np
 import rasterio
@@ -206,6 +207,20 @@ def parse_args(argv=None):
     p.add_argument("--bbox", default=DEFAULT_BBOX)
     p.add_argument("--out", default=OUT_DIR)
     p.add_argument("--model-dir", default=MODEL_DIR)
+    p.add_argument(
+        "--device",
+        default="cpu",
+        choices=("cuda", "cpu"),
+        help="cpu is faster for one shallow booster. cuda uses inplace_predict "
+             "in --batch-rows chunks (needs matching GPU data to beat 16 cores).",
+    )
+    p.add_argument(
+        "--batch-rows",
+        type=int,
+        default=1_000_000,
+        help="rows per predict_proba call. 1e6 is the GPU batch; tiny batches "
+             "recreate the 5k-row launch tax.",
+    )
     return p.parse_args(argv)
 
 
@@ -233,18 +248,40 @@ def main(argv=None):
     else:
         valid_fut = valid & np.all(np.isfinite(stack_fut), axis=0)
 
-    model = load_booster(model_path)
+    model = load_booster(model_path, device=args.device)
     rows, cols = np.where(valid_fut)
     if len(rows) == 0:
         raise SystemExit("No valid cells in bbox")
-    print(f"Scoring {species} on {len(rows):,} cells …")
-    p_now_vec = score_grid(model, stack[:, rows, cols].T)
+    print(
+        f"Scoring {species} on {len(rows):,} cells  "
+        f"device={args.device}  batch={args.batch_rows:,}"
+    )
+    x_now = np.ascontiguousarray(stack[:, rows, cols].T, dtype=np.float32)
+    # JIT / first H2D not counted in the timed batch.
+    _ = score_grid(
+        model,
+        x_now[: min(4096, len(x_now))],
+        device=args.device,
+        batch_size=4096,
+    )
+    t0 = time.perf_counter()
+    p_now_vec = score_grid(
+        model, x_now, device=args.device, batch_size=args.batch_rows
+    )
+    t_now = time.perf_counter() - t0
+    print(f"  today  {t_now:.2f}s  {len(rows) / max(t_now, 1e-6):,.0f} cells/s")
     p_now = np.full(valid.shape, np.nan, np.float32)
     p_now[rows, cols] = p_now_vec
     p_fut = None
     delta = None
     if have_2050:
-        p_fut_vec = score_grid(model, stack_fut[:, rows, cols].T)
+        x_fut = np.ascontiguousarray(stack_fut[:, rows, cols].T, dtype=np.float32)
+        t1 = time.perf_counter()
+        p_fut_vec = score_grid(
+            model, x_fut, device=args.device, batch_size=args.batch_rows
+        )
+        t_fut = time.perf_counter() - t1
+        print(f"  2050   {t_fut:.2f}s  {len(rows) / max(t_fut, 1e-6):,.0f} cells/s")
         p_fut = np.full_like(p_now, np.nan)
         p_fut[rows, cols] = p_fut_vec
         delta = p_fut - p_now
