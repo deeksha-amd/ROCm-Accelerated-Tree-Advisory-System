@@ -37,8 +37,8 @@ pip install scikit-learn rasterio pandas numpy requests tqdm
 pip install amd_xgboost --extra-index-url=https://pypi.amd.com/rocm-7.1.1/simple
 ```
 
-`--model deepmaxent` also needs PyTorch (use the ROCm build already on the
-training image; do not replace it with a CUDA wheel from PyPI).
+`--model deepmaxent` needs the ROCm PyTorch image below (do not `pip install`
+a CUDA wheel from PyPI).
 
 ---
 
@@ -206,6 +206,18 @@ Open `maps/Quercus_virginiana_usa_30s.html`.
 Same cleaned occurrences, same 61 layers, same target-group background, same
 spatial-block CV gate. One network with an output per species — a single run
 rather than one booster per name.
+
+Train and score DeepMaxent inside this ROCm PyTorch container (GPU devices
+`/dev/kfd` and `/dev/dri`, home mounted so the repo is visible):
+
+```bash
+docker run --cap-add=SYS_PTRACE --ipc=host --privileged=true --shm-size=128GB \
+  --network=host --device=/dev/kfd --device=/dev/dri --group-add video -it \
+  -v $HOME:$HOME --name ${LOGNAME}_rocm \
+  rocm/pytorch:rocm7.1_ubuntu24.04_py3.12_pytorch_release_2.9.1
+```
+
+Do not replace the image's torch with a CUDA wheel from PyPI.
 
 ### Train
 
