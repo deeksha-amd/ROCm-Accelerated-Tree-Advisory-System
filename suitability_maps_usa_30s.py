@@ -168,10 +168,8 @@ def write_map_html(species, stem, bbox, out_dir, have_2050):
 <header>
   <h1>{species}: USA 1 km record-likeness</h1>
   <p class="sub">p is how much each 1 km cell looks like GBIF records of this
-  species versus other listed trees (target-group background) — not a planting
-  suitability map. Soil and terrain held fixed. 2050 swaps only the 19 BIO
-  layers (CMIP6 MPI-ESM1-2-HR ssp245 2041–2060, delta onto the 2015–2024 1 km
-  climate — not a resized 18 km cube). Not trained on tree cover.</p>
+  species versus other listed trees — not a planting map. Soil and terrain
+  stay put. 2050 swaps climate BIO only. Not trained on tree cover.</p>
 </header>
 <div class="panels">
   <figure><img src="{now_uri}" alt="today"/><figcaption>Today (2015–2024 1 km BIO). Cream → green = higher p.</figcaption></figure>

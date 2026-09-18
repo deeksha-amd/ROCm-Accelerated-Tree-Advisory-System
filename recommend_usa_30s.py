@@ -80,10 +80,10 @@ SCORE_DISCLAIMER = (
     "2050 = new BIO only. Land cover is a filter."
 )
 XGB_IMPORTANCE_CAPTION = (
-    "Species-wide XGBoost gain (all US training cells), not why this pin scored:"
+    "Layers this tree's US model used most — not the reason for the score here."
 )
 DEEPMAXENT_IMPORTANCE_CAPTION = (
-    "DeepMaxent sensitivity at this pin (score change per 1 SD of each layer):"
+    "How this pin's score changes if each layer moves (local)."
 )
 
 BIO_PLAIN = {
@@ -312,13 +312,13 @@ class XgboostBackend:
     """One gradient-boosted booster per species, loaded on demand."""
 
     kind = "xgboost"
-    title = "XGBoost"
+    title = ""
     model_dir = XGB_MODEL_DIR
     metrics_path = os.path.join(XGB_MODEL_DIR, "metrics.csv")
     train_hint = "  python xgboost_training_usa_30s.py --full-list --skip-existing"
     importance_caption = XGB_IMPORTANCE_CAPTION
     missing_layer_note = (
-        "XGBoost treats those as missing rather than as average soil."
+        "The model skips those layers here; it does not fill in average soil."
     )
 
     def __init__(self):
@@ -360,14 +360,13 @@ class DeepMaxentBackend:
     pass; results are cached per predictor vector (today's, then 2050's)."""
 
     kind = "deepmaxent"
-    title = "DeepMaxent"
+    title = ""
     model_dir = deepmaxent_sdm.MODEL_DIR
     metrics_path = deepmaxent_sdm.METRICS_PATH
     train_hint = deepmaxent_sdm.TRAIN_HINT
     importance_caption = DEEPMAXENT_IMPORTANCE_CAPTION
     missing_layer_note = (
-        "DeepMaxent reads those as average soil for the US, because the "
-        "network has no missing-value branch."
+        "The model fills those with typical US values."
     )
 
     def __init__(self, checkpoint_path=deepmaxent_sdm.CHECKPOINT_PATH):
