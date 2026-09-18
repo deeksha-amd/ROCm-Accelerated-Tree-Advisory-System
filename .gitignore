@@ -160,3 +160,5 @@ data/species_occurrences/
 # USA 1 km boosters; keep metrics/feature names if present
 models_usa_30s/*.json
 data/models_usa_30s/*.json
+data/models_usa_30s_shared*/
+profiling/rocprof_xgb/*trace.csv

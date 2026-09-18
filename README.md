@@ -143,11 +143,12 @@ python xgboost_training_usa_30s.py --full-list --skip-existing
 ### Speed-run (`--shared-universe`)
 
 One X of unique 1 km tree cells (**245,276** after dropping NaN rows). Each
-species is a 0/1 label on that table, with `scale_pos_weight`. GPU histogram
-work is real; 1:1 samples are launch-bound. Clocked on MI300X vs 8 CPU
-threads: fit **648 s vs 2428 s (3.7×)**; mean AUC **0.877** GPU / **0.876** CPU
-(248 saved). That AUC is **not** comparable to the 1:1 fleet. Write to a
-**different** `--model-dir`.
+species is a 0/1 label on that table, with `scale_pos_weight`. X is
+histogram-binned once (`QuantileDMatrix`); folds reuse those cuts, on CPU and
+GPU alike. GPU histogram work is real; 1:1 samples are launch-bound. Clocked on
+MI300X vs 8 CPU threads: fit **458 s vs 2414 s (5.3×)**, wall 490 s vs 2446 s,
+mean spatial-block AUC **0.876** GPU / **0.877** CPU (**248 saved**). That AUC
+is **not** comparable to the 1:1 fleet. Write to a **different** `--model-dir`.
 
 ```bash
 python xgboost_training_usa_30s.py --full-list --shared-universe --device cuda \

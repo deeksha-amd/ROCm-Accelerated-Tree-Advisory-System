@@ -15,6 +15,10 @@ Occurrences: cleaned + thinned 1 km table from clean_species_usa_30s.py.
 Background: target-group — cells where *other* list trees were recorded,
 not uniform land (which teaches "near a road").
 
+Shared-universe and 1:1 both histogram-bin X once (QuantileDMatrix).
+Folds reuse those quantile cuts (ref=). Shared-universe also reuses the
+matrix across species (set_label). Same path for --device cuda and cpu.
+
 Default species list is data/usa_tree_species_seed.csv (few, better).
 Grow later with --species-list data/usa_tree_species_list.csv after
 re-cleaning the full checklist.
@@ -362,6 +366,108 @@ def xgb_params_for_n(n_samples, device):
     return params
 
 
+def _native_train_params(n_samples, device, scale_pos_weight=None):
+    """sklearn names → xgb.train names. Same dict on CPU and GPU."""
+    params = xgb_params_for_n(n_samples, device)
+    if scale_pos_weight is not None:
+        params["scale_pos_weight"] = float(scale_pos_weight)
+    params["seed"] = params.pop("random_state")
+    n_jobs = params.pop("n_jobs")
+    # sklearn n_jobs=0 means all cores; xgb.train nthread=0 can hang.
+    if n_jobs:
+        params["nthread"] = int(n_jobs)
+    return params
+
+
+def make_binned_dmatrix(X, y, device, ref=None):
+    """Histogram-bin X once. CPU and GPU both use QuantileDMatrix + device=.
+
+    Shared-universe training sketches X once. Each species swaps labels;
+    each fold ingests its rows with ref= so cuts are not recomputed.
+    """
+    X = np.ascontiguousarray(X, dtype=np.float32)
+    y = None if y is None else np.ascontiguousarray(y, dtype=np.float32)
+    kwargs = dict(
+        data=X,
+        label=y,
+        max_bin=int(XGB_GPU_PARAMS["max_bin"]),
+        missing=np.nan,
+    )
+    if ref is not None:
+        kwargs["ref"] = ref
+    try:
+        return xgb.QuantileDMatrix(device=device, **kwargs)
+    except TypeError:
+        return xgb.QuantileDMatrix(**kwargs)
+
+
+def _bind_labels(binned, y, X, device):
+    y = np.ascontiguousarray(y, dtype=np.float32)
+    try:
+        binned.set_label(y)
+        return binned
+    except (xgb.core.XGBoostError, ValueError, TypeError, AttributeError):
+        return make_binned_dmatrix(X, y, device, ref=binned)
+
+
+def _fold_train_eval(binned, train_idx, test_idx, X, y, device):
+    """Train/eval matrices for one fold, reusing histogram cuts from binned.
+
+    QuantileDMatrix.slice is unsupported. Ingest fold rows with ref= so the
+    quantile sketch of X is not recomputed. Eval must ref the *training*
+    matrix (XGBoost requirement).
+    """
+    dtrain = make_binned_dmatrix(
+        X[train_idx], y[train_idx], device, ref=binned,
+    )
+    dtest = make_binned_dmatrix(
+        X[test_idx], y[test_idx], device, ref=dtrain,
+    )
+    return dtrain, dtest
+
+
+def _train_booster(
+    dtrain,
+    n_estimators,
+    n_samples,
+    device,
+    early_stopping_rounds=None,
+    scale_pos_weight=None,
+    dval=None,
+):
+    params = _native_train_params(n_samples, device, scale_pos_weight)
+    kwargs = dict(
+        params=params,
+        dtrain=dtrain,
+        num_boost_round=int(n_estimators),
+        verbose_eval=False,
+    )
+    if dval is not None:
+        kwargs["evals"] = [(dval, "eval")]
+    if early_stopping_rounds:
+        kwargs["early_stopping_rounds"] = int(early_stopping_rounds)
+    return xgb.train(**kwargs)
+
+
+def _trees_used(bst, n_estimators):
+    best = getattr(bst, "best_iteration", None)
+    if best is None:
+        return int(n_estimators)
+    return int(best) + 1
+
+
+def _classifier_from_booster(
+    bst, n_estimators, n_samples, device, scale_pos_weight=None,
+):
+    params = xgb_params_for_n(n_samples, device)
+    if scale_pos_weight is not None:
+        params["scale_pos_weight"] = float(scale_pos_weight)
+    model = xgb.XGBClassifier(n_estimators=int(n_estimators), **params)
+    model._Booster = bst
+    model.n_classes_ = 2
+    return model
+
+
 def _make_classifier(
     n_estimators, n_samples, device, early_stopping_rounds=None,
     scale_pos_weight=None,
@@ -376,8 +482,14 @@ def _make_classifier(
     )
 
 
-def train_xy_sdm(X, y, coords, device, scale_pos_weight=None, groups=None):
-    """5-fold spatial-block CV + final fit on a prepared (X, y)."""
+def train_xy_sdm(
+    X, y, coords, device, scale_pos_weight=None, groups=None, binned=None,
+):
+    """5-fold spatial-block CV + final fit on a prepared (X, y).
+
+    If binned is a QuantileDMatrix for this X (shared-universe), labels are
+    swapped in place so CPU and GPU clocks share the same sketch-once path.
+    """
     X = np.ascontiguousarray(X, dtype=np.float32)
     y = np.ascontiguousarray(y, dtype=np.float32)
     if groups is None:
@@ -389,6 +501,11 @@ def train_xy_sdm(X, y, coords, device, scale_pos_weight=None, groups=None):
     if splits is None:
         return None, float("nan"), 0, 0, n_folds
 
+    if binned is None:
+        binned = make_binned_dmatrix(X, y, device)
+    else:
+        binned = _bind_labels(binned, y, X, device)
+
     n_usable = 0
     n_samples = len(y)
     for train_idx, test_idx in splits:
@@ -396,36 +513,41 @@ def train_xy_sdm(X, y, coords, device, scale_pos_weight=None, groups=None):
         if len(np.unique(y_train)) < 2 or len(np.unique(y_test)) < 2:
             continue
         n_usable += 1
-        model = _make_classifier(
+        dtrain, dtest = _fold_train_eval(
+            binned, train_idx, test_idx, X, y, device,
+        )
+        bst = _train_booster(
+            dtrain,
             n_estimators=MAX_BOOST_ROUNDS,
             n_samples=n_samples,
             device=device,
             early_stopping_rounds=EARLY_STOPPING_ROUNDS,
             scale_pos_weight=scale_pos_weight,
+            dval=dtest,
         )
-        model.fit(
-            X[train_idx],
-            y_train,
-            eval_set=[(X[test_idx], y_test)],
-            verbose=False,
-        )
-        pred = model.predict_proba(X[test_idx])[:, 1]
+        trees = _trees_used(bst, MAX_BOOST_ROUNDS)
+        # Booster.predict uses every round unless told otherwise; score the
+        # early-stopped model, like predict_proba did.
+        pred = bst.predict(dtest, iteration_range=(0, trees))
         auc_scores.append(roc_auc_score(y_test, pred))
-        best_ntrees.append(int(model.best_iteration) + 1)
+        best_ntrees.append(trees)
 
     mean_auc = float(np.mean(auc_scores)) if auc_scores else float("nan")
     if not best_ntrees:
         return None, mean_auc, 0, n_usable, n_folds
 
     n_trees = max(int(np.median(best_ntrees)), 10)
-    final_model = _make_classifier(
+    final_bst = _train_booster(
+        binned,
         n_estimators=n_trees,
         n_samples=n_samples,
         device=device,
         early_stopping_rounds=None,
         scale_pos_weight=scale_pos_weight,
     )
-    final_model.fit(X, y, verbose=False)
+    final_model = _classifier_from_booster(
+        final_bst, n_trees, n_samples, device, scale_pos_weight,
+    )
     return final_model, mean_auc, n_trees, n_usable, n_folds
 
 
@@ -499,8 +621,9 @@ def parse_args():
         action="store_true",
         help="batch training: one X for every unique 1 km tree cell "
              "(~4.5e5 rows), binary y per species, scale_pos_weight. "
-             "GPU hist has real work. AUC is not comparable to the 1:1 "
-             "absence subsample used by the shipped fleet.",
+             "X is histogram-binned once (CPU and GPU). AUC is not "
+             "comparable to the 1:1 absence subsample used by the "
+             "shipped fleet.",
     )
     parser.add_argument(
         "--n-jobs",
@@ -556,6 +679,7 @@ def main():
     univ_coords = None
     univ_cell_ids = None
     univ_groups = None
+    univ_binned = None
     if args.shared_universe:
         univ_coords = predictors.unique_pixel_coords(pool_all)
         X_univ = predictors.sample(univ_coords)
@@ -564,9 +688,14 @@ def main():
         X_univ = np.ascontiguousarray(X_univ, dtype=np.float32)
         univ_cell_ids = _cell_ids(predictors, univ_coords)
         univ_groups = spatial_block_ids(univ_coords)
+        univ_binned = make_binned_dmatrix(
+            X_univ,
+            np.zeros(len(X_univ), dtype=np.float32),
+            args.device,
+        )
         print(
             f"Shared universe: {len(X_univ):,} unique tree cells  "
-            f"(one X, binary y per species)"
+            f"(one X, binary y per species, QuantileDMatrix device={args.device})"
         )
     metrics = []
     saved_aucs = []
@@ -671,6 +800,7 @@ def main():
                     args.device,
                     scale_pos_weight=spw,
                     groups=univ_groups,
+                    binned=univ_binned,
                 )
                 t_fit += time.perf_counter() - t_fit0
                 n_fit += 1

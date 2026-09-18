@@ -419,7 +419,7 @@ Differences from the 10-arc-minute run that matter:
 
 **1:1 (demo / Austin).** `n_absences = min(len(presence), 25000)` other listed-tree cells. Typical X is a few thousand rows. Default `--device cuda`. Shipped `data/models_usa_30s/`: **255 saved**, mean AUC **0.888**. `--skip-existing` keeps a booster only when the JSON exists **and** `metrics.csv` says `status=saved`.
 
-**`--shared-universe` (GPU clock).** Unique 1 km tree cells → drop NaN rows → one X (**245,276** rows). `y = isin(cell, this species)`, `scale_pos_weight = n_neg / n_pos`. Same spatial-block CV. Clocked MI300X vs 8 CPU threads: fit **648 s vs 2428 s (3.7×)**; mean AUC **0.877** GPU / **0.876** CPU (248 saved). Seven range-restricted species that the 1:1 path saved can fail the fold gate here. Write to a **different `--model-dir`**. Do not replace the Austin 1:1 JSON with this speed-run.
+**`--shared-universe` (GPU clock).** Unique 1 km tree cells → drop NaN rows → one X (**245,276** rows). `y = isin(cell, this species)`, `scale_pos_weight = n_neg / n_pos`. Same spatial-block CV. X is sketched once into a `QuantileDMatrix`; each species swaps labels and each fold ingests its rows with `ref=` so the quantile cuts are not rebuilt — same code on both devices. Clocked MI300X vs 8 CPU threads: fit **458 s vs 2414 s (5.3×)**, wall **490 s vs 2446 s**, mean spatial-block AUC **0.876** GPU / **0.877** CPU (248 saved). Seven range-restricted species that the 1:1 path saved can fail the fold gate here. Write to a **different `--model-dir`**. Do not replace the Austin 1:1 JSON with this speed-run.
 
 `--n-jobs` (default 0 = all visible CPUs) sets XGBoost / OpenMP threads. Use **8** for the workstation-vs-MI300X comparison. The trainer prints Wall and peak RSS.
 
