@@ -23,7 +23,7 @@ country_src_cache/
 
 # ─── derived global raster blocks, ~3.2 GB total ───
 # XGBoost downloaders: data/scripts/*.py
-# Deep-learning downloaders: deep_learning_sdm/*.py
+# Archived France deep SDM: poc/archive/deep_learning_sdm/*.py
 # GitHub rejects files over 100 MB.
 soil_data/
 topography/
@@ -55,7 +55,7 @@ validation/
 # 274 MB for France, 186 MB for Spain, 2.4 GB for the USA, and every raster in
 # them is rebuilt by one command:
 #
-#   python deep_learning_sdm/prepare_country.py FRA
+#   python poc/archive/deep_learning_sdm/prepare_country.py FRA
 #
 # so only the manifests are committed. Those are 36 KB and carry the source
 # URLs, the grid and the checksums each block was built from, which is what a
@@ -77,6 +77,11 @@ deep_sdm_output/*
 deep_sdm_output/fra_30s_96sp_bg1km/*
 !deep_sdm_output/fra_30s_96sp_bg1km/deep_sdm.pt
 !deep_sdm_output/fra_30s_96sp_bg1km/run_summary.json
+poc/archive/deep_sdm_output/*
+!poc/archive/deep_sdm_output/fra_30s_96sp_bg1km/
+poc/archive/deep_sdm_output/fra_30s_96sp_bg1km/*
+!poc/archive/deep_sdm_output/fra_30s_96sp_bg1km/deep_sdm.pt
+!poc/archive/deep_sdm_output/fra_30s_96sp_bg1km/run_summary.json
 
 # ─── satellite circularity experiment ───
 # The NDVI and land-cover rasters, the occurrence and background snapshots and
@@ -90,6 +95,12 @@ satellite_experiment/*
 satellite_experiment/FRA_30s/*
 !satellite_experiment/FRA_30s/MANIFEST.json
 !satellite_experiment/FRA_30s/DO_NOT_TRAIN_ON_THIS.md
+poc/archive/satellite_experiment/*
+!poc/archive/satellite_experiment/results/
+!poc/archive/satellite_experiment/FRA_30s/
+poc/archive/satellite_experiment/FRA_30s/*
+!poc/archive/satellite_experiment/FRA_30s/MANIFEST.json
+!poc/archive/satellite_experiment/FRA_30s/DO_NOT_TRAIN_ON_THIS.md
 
 # ─── generated logs and caches ───
 # prepare_country.py tees every stage into logs/ and appends to
@@ -116,24 +127,35 @@ advisory_cache/
 !deep_learning_sdm/tree_species_list.csv
 !deep_learning_sdm/tree_species_list_ES.csv
 !deep_learning_sdm/tree_species_list_US.csv
+!poc/archive/deep_learning_sdm/tree_species_list.csv
+!poc/archive/deep_learning_sdm/tree_species_list_ES.csv
+!poc/archive/deep_learning_sdm/tree_species_list_US.csv
 !data/usa_tree_species_seed.csv
 !data/usa_tree_species_list.csv
 !data/species_traits.csv
 # What the model trains on: cleaned, and cleaned then thinned to 18.5 km.
 !species_occurrences/gbif_trees_clean.csv
 !species_occurrences/gbif_trees_thinned.csv
+!poc/archive/species_occurrences/gbif_trees_clean.csv
+!poc/archive/species_occurrences/gbif_trees_thinned.csv
 # The France target-group backgrounds, native to the 1 km and 18.5 km grids.
 # background_points.csv is deliberately absent: sampling_effort.py writes that
 # country-agnostic name for whichever country ran last, and it is currently a
 # byte-for-byte copy of Spain's draw.
 !sampling_effort/background_FR_30s.csv
 !sampling_effort/background_FR.csv
+!poc/archive/sampling_effort/background_FR_30s.csv
+!poc/archive/sampling_effort/background_FR.csv
 # Cross-validation metrics for the served run.
 !deep_sdm_output/fra_30s_96sp_bg1km/cv_metrics_by_species.csv
 !deep_sdm_output/fra_30s_96sp_bg1km/cv_metrics_by_fold.csv
+!poc/archive/deep_sdm_output/fra_30s_96sp_bg1km/cv_metrics_by_species.csv
+!poc/archive/deep_sdm_output/fra_30s_96sp_bg1km/cv_metrics_by_fold.csv
 # Circularity result tables, minus the 3.1 MB per-species-fold-stratum one.
 !satellite_experiment/results/*.csv
 satellite_experiment/results/metrics_by_species_fold_stratum.csv
+!poc/archive/satellite_experiment/results/*.csv
+poc/archive/satellite_experiment/results/metrics_by_species_fold_stratum.csv
 !data/models/metrics.csv
 !data/models_usa_30s/metrics.csv
 !data/models_usa_30s/feature_names.txt
@@ -152,6 +174,9 @@ satellite_experiment/results/metrics_by_species_fold_stratum.csv
 sampling_effort/*.tif
 !sampling_effort/plant_effort_FR_30s.tif
 !sampling_effort/plant_effort_FR_10m.tif
+poc/archive/sampling_effort/*.tif
+!poc/archive/sampling_effort/plant_effort_FR_30s.tif
+!poc/archive/sampling_effort/plant_effort_FR_10m.tif
 
 # ─── raw GBIF pages ───
 # One CSV and one JSON per species per country, plus the per-country raw dumps:
@@ -160,6 +185,7 @@ sampling_effort/*.tif
 # caches, cleaning reports and manifests stay tracked as provenance, and
 # advisory_service.py reads the plans and caches for common names.
 species_occurrences/*/raw/
+poc/archive/species_occurrences/*/raw/
 data/species_occurrences/
 # Same path as a symlink: a machine that keeps the payload elsewhere can point
 # data/ at it, and git must not try to commit the link. The rules above end in

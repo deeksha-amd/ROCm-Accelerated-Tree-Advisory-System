@@ -11,55 +11,59 @@ A pin only looks up the raster cell; latitude and longitude are **not**
 features. The score `p` is **record-likeness**: how much that 1 km cell looks
 like GBIF records of the species *versus other listed trees* (target-group
 background). It is not a planting permit, survival odds, or a backyard shade
-model. Both models are trained on the same occurrences and the same 61 layers,
-so `p` reads on the same scale either way.
+model. Both models use the same occurrences and the same 61 layers, so `p`
+reads on the same scale either way.
 
 The **main path is the contiguous USA at 1 km** (30 arcsec). An older global
-**18 km** demo lives in `poc/`. A separate **deep-learning SDM** pipeline lives
-in `deep_learning_sdm/` (see `deep_learning_sdm/COMMANDS.md`).
+**18 km** demo lives in `poc/`.
 
-Run every command from this directory (`hackathon_2026/`), with the venv on:
+Train with `--device cuda` on MI300X (or `--device cpu`). A pin is one
+61-vector — `recommend_usa_30s.py` scores on CPU. Maps default to CPU; pass
+`--device cuda` to batch-score a bbox.
+
+How models are trained and how recommend uses them: `DEVELOPER_GUIDE.md`.  
+Where each raster came from and what not to train on: `DATA_OVERVIEW.md`.
+
+---
+
+## Setup
+
+Run every command from this repository root, with the venv on:
 
 ```bash
+python3 -m venv venv
 source venv/bin/activate
+pip install scikit-learn rasterio pandas numpy requests tqdm
+pip install amd_xgboost --extra-index-url=https://pypi.amd.com/rocm-7.1.1/simple
 ```
 
-Train with `--device cuda` on MI300X (or `--device cpu`). A pin is one 61-vector —
-`recommend_usa_30s.py` scores on CPU. Maps default to CPU; pass `--device cuda` to
-batch-score a bbox.
+`--model deepmaxent` also needs PyTorch (use the ROCm build already on the
+training image; do not replace it with a CUDA wheel from PyPI).
 
 ---
 
 ## Which model to pick
 
-Both gate on 5-fold spatial-block CV. Mean AUC over the species each one gates:
+Both gate on 5-fold spatial-block CV. Mean AUC over the species each one
+**saves**:
 
-| Model | Species gated | Mean AUC |
-|---|---|---|
-| XGBoost | 32 | 0.8451 |
-| DeepMaxent | 243 | 0.8529 |
+| Model | Species saved | Mean AUC | AUC ≥ 0.70 at a pin |
+|---|---|---|---|
+| XGBoost (1:1 fleet) | 255 | 0.888 | 253 |
+| DeepMaxent | 243 | 0.8529 | 236 |
 
-Those two numbers are **not** comparable: DeepMaxent's 0.8529 spans 243 species,
-many of them sparse and hard, against 32 well-sampled ones for XGBoost. On the 32
-both gate, XGBoost is still ahead — **0.8451 vs 0.8228**. DeepMaxent does not win
-on accuracy. The protocols also differ in difficulty, unresolved so far: XGBoost
-blocks each species' own points, so held-out ground still lies inside that
-species' range, while DeepMaxent blocks all 245k CONUS cells into
-continental-scale chunks (per-fold 0.883 / 0.886 / 0.813 / 0.865 / 0.801). Part
-of the gap is likely protocol rather than model quality, but that is unproven.
-
-Coverage is the sharper difference. DeepMaxent gates 243 of the 285 names it
-trains on against XGBoost's 32, and the default `--min-auc 0.70` leaves 236
-eligible at a pin (XGBoost: 31), so shortlists come from a much wider pool.
-Retraining cuts the other way: `--skip-existing` makes XGBoost incremental, so
-adding 20 species costs 20 species of training, while DeepMaxent fits every
-species jointly and adding one means refitting all of them (~2 min). XGBoost
-ships 255 JSON files, DeepMaxent one 0.8 MB checkpoint.
+Those AUCs are **not** comparable. Protocols differ: XGBoost blocks each
+species' own points, so held-out ground still lies inside that species' range,
+while DeepMaxent blocks all ~245k CONUS tree cells into continental-scale
+chunks. Retraining also differs: `--skip-existing` makes XGBoost incremental;
+DeepMaxent fits every species jointly, so adding one name means refitting all
+of them (~2 min). XGBoost ships one JSON per saved species; DeepMaxent ships
+one ~0.8 MB checkpoint.
 
 Scoring is CPU-only by design for both. A pin costs ~2.6 s with `--model
 deepmaxent` against ~1.4 s with `--model xgboost`, nearly all of it importing
-torch rather than the model. The GPU is skipped deliberately: it needs 2.25 s of
-warm-up, more than the 0.74 s CPU forward pass over all 245k cells.
+torch rather than the model. The GPU is skipped deliberately: it needs 2.25 s
+of warm-up, more than the 0.74 s CPU forward pass over all 245k cells.
 
 ---
 
@@ -71,13 +75,27 @@ is **gitignored** (GeoTIFFs are huge; JSON boosters are many):
 | Needed locally | Typical path | If missing |
 |---|---|---|
 | 1 km climate / soil / terrain | `data/country_data/USA/{climate,soil,topography}_30s/` | copy from the training machine |
-| Saved boosters | `data/models_usa_30s/*.json` | copy, or train (below) |
-| DeepMaxent checkpoint | `data/models_deepmaxent_usa_30s/deepmaxent_usa_30s.pt` | copy, or train (below); only for `--model deepmaxent` |
+| Saved boosters | `data/models_usa_30s/*.json` | copy, or train (XGBoost below) |
+| DeepMaxent checkpoint | `data/models_deepmaxent_usa_30s/deepmaxent_usa_30s.pt` | copy, or train (DeepMaxent below) |
 | Optional 2050 BIO | `data/country_data/USA/climate_future_2050_30s/` | `python future_climate_usa_30s.py` |
 | Optional 1 km satellite filters | `data/country_data/USA/satellite_30s/` | `python data/scripts/satellite_rasters_usa_30s.py` |
 
-`recommend_usa_30s.py` exits with that list rather than scoring on empty folders.
-Do **not** point USA recommend at `data/satellite/` (the 18 km global filters).
+`recommend_usa_30s.py` exits with that list rather than scoring on empty
+folders. Do **not** point USA recommend at `data/satellite/` (the 18 km global
+filters).
+
+Optional 2050 bars (does not retrain):
+
+```bash
+python future_climate_usa_30s.py
+```
+
+Optional 1 km satellite mix (WorldCover on the same cell as the map box):
+
+```bash
+python data/scripts/satellite_rasters_usa_30s.py --smoke   # Austin + Portland tiles
+# python data/scripts/satellite_rasters_usa_30s.py         # full CONUS, slower
+```
 
 ---
 
@@ -87,119 +105,57 @@ Do **not** point USA recommend at `data/satellite/` (the 18 km global filters).
 |---|---|
 | `xgboost_training_usa_30s.py` | Train USA 1 km boosters → `data/models_usa_30s/` |
 | `deepmaxent_training_usa_30s.py` | Train the USA 1 km Deep SDM → `data/models_deepmaxent_usa_30s/` |
-| `deepmaxent/` | DeepMaxent network + losses, vendored verbatim from upstream |
-| `deepmaxent_sdm.py` | Checkpoint format and inference for the Deep SDM |
 | `clean_species_usa_30s.py` | Clean + thin US GBIF onto the 1 km grid |
 | `recommend_usa_30s.py` | Pin → top 5 plantable trees (today + 2050), either model |
+| `suitability_maps_usa_30s.py` | One-species today vs 2050 map (saved JSON boosters) |
 | `future_climate_usa_30s.py` | Build honest 1 km 2050 BIO (once) |
-| `suitability_maps_usa_30s.py` | One-species today vs 2050 record-likeness map |
-| `poc/` | Global 18 km train / recommend / oak–Seville maps |
+| `poc/` | Global 18 km train / recommend / maps |
+| `poc/archive/` | Unused France deep SDM snapshot (not DeepMaxent) |
 | `data/` | Rasters, GBIF, species lists, saved models |
 | `data/scripts/` | Downloaders (climate, soil, topography, satellite, GBIF) |
-| `deep_learning_sdm/` | Deep-learning SDM + advisory (France 1 km served run) |
 | `maps/` | USA HTML (`austin.html`, live oak, …) |
 | `repo_paths.py` | Shared `data/` locations (imported, not run) |
 
-How models are trained and how recommend uses them: `DEVELOPER_GUIDE.md`.  
-Where each raster came from and what not to train on: `DATA_OVERVIEW.md`.
+Occurrences must be cleaned onto the same 1 km grid the rasters use before
+either trainer:
+
+```bash
+python clean_species_usa_30s.py                                          # seed CSV
+python clean_species_usa_30s.py --species-list data/usa_tree_species_list.csv  # full US checklist
+```
+
+Needs ~6 GB RAM for the 61-layer stack. Does not touch `poc/` or `data/models/`.
 
 ---
 
-## USA 1 km — recommend (needs local models + rasters)
+## XGBoost
 
-When the table above is on disk:
+Austin scores the **1:1** fleet in `data/models_usa_30s/`. Do **not** overwrite
+that folder with `--shared-universe` JSON.
 
-```bash
-# Austin
-python recommend_usa_30s.py --lat 30.2672 --lon -97.7431 --goal shade --html maps/austin.html
-
-# Or geocode
-python recommend_usa_30s.py --address "Austin, Texas" --goal shade --html maps/austin.html
-
-# Same pin, Deep SDM instead of the boosters
-python recommend_usa_30s.py --model deepmaxent --lat 30.2672 --lon -97.7431 --goal shade
-```
-
-Each booster is loaded with `load_booster(..., device="cpu")`. For that pin the
-61-vector is scored as `p = predict_proba(x)[0, 1]` (sigmoid of the tree-sum
-log-odds). Species with `p < 0.30` are dropped; the rest rank by `p * auc`.
-Invasive and naturalised trees (chinaberry, tree-of-heaven, …) are trained so
-the model knows them, then **dropped from the top-5** and listed under “do not
-plant”. Default recommend gate is AUC **≥ 0.70**.
-
-Open `maps/austin.html`. The page shows lat/lon, a 1 km cell, today vs 2050
-record-likeness bars, and a per-layer breakdown that depends on the model:
-`--model xgboost` reports **species-wide** gain (not a local explanation of the
-pin), while `--model deepmaxent` reports a **local sensitivity at that pin** —
-`|d lambda / d z|`, the score change per 1 SD of each layer. The XGBoost demo
-reads the **1:1** JSON in `data/models_usa_30s/` (255 saved, mean AUC 0.888) —
-not a `--shared-universe` speed-run.
-
-CONUS only. Pins outside the lower-48 envelope are rejected.
-
-If 2050 bars are missing, build the 1 km future BIO once (does not retrain):
-
-```bash
-python future_climate_usa_30s.py
-python recommend_usa_30s.py --lat 30.2672 --lon -97.7431 --html maps/austin.html
-```
-
-1 km satellite mix (WorldCover on the same cell as the map box):
-
-```bash
-python data/scripts/satellite_rasters_usa_30s.py --smoke   # Austin + Portland tiles
-# python data/scripts/satellite_rasters_usa_30s.py         # full CONUS, slower
-```
-
-One-species map (default live oak, south-central US crop — a bbox, not the
-full 7020×3060 stack):
-
-```bash
-python suitability_maps_usa_30s.py --species "Quercus virginiana"
-# optional GPU batches (host NumPy → inplace_predict; CPU is often faster for one booster)
-# python suitability_maps_usa_30s.py --species "Quercus virginiana" --device cuda --batch-rows 1000000
-```
-
-Open `maps/Quercus_virginiana_usa_30s.html`.
-
----
-
-## USA 1 km — train
-
-Occurrences must be cleaned onto the same 1 km grid the rasters use.
-
-There are **two protocols**. Austin scores the **1:1** fleet in
-`data/models_usa_30s/`. Do **not** overwrite that folder with
-`--shared-universe` JSON.
-
-### Demo fleet (1:1 absences)
+### Train (1:1 absences)
 
 Each species gets its presence cells plus `min(n_presence, 25000)` other
 listed-tree cells. Typical X is a few thousand rows. Shipped: **255 saved**,
 mean spatial-block AUC **0.888**. `--device` defaults to `cuda`.
 
 ```bash
-# Short list first (~32 well-known trees)
-python clean_species_usa_30s.py
 python xgboost_training_usa_30s.py
-
-# Full US checklist (keeps JSON already on disk)
-python clean_species_usa_30s.py --species-list data/usa_tree_species_list.csv
 python xgboost_training_usa_30s.py --full-list --skip-existing
 ```
 
 `--skip-existing` keeps a booster only when the JSON exists **and**
 `metrics.csv` says `status=saved`. Drop the flag only if you intend to retrain.
 
-### Speed-run (`--shared-universe`)
+### Train (`--shared-universe`)
 
 One X of unique 1 km tree cells (**245,276** after dropping NaN rows). Each
 species is a 0/1 label on that table, with `scale_pos_weight`. X is
 histogram-binned once (`QuantileDMatrix`); folds reuse those cuts, on CPU and
-GPU alike. GPU histogram work is real; 1:1 samples are launch-bound. Clocked on
-MI300X vs 8 CPU threads: fit **458 s vs 2414 s (5.3×)**, wall 490 s vs 2446 s,
-mean spatial-block AUC **0.876** GPU / **0.877** CPU (**248 saved**). That AUC
-is **not** comparable to the 1:1 fleet. Write to a **different** `--model-dir`.
+GPU alike. Clocked on MI300X vs 8 CPU threads: fit **458 s vs 2414 s (5.3×)**,
+wall 490 s vs 2446 s, mean spatial-block AUC **0.876** GPU / **0.877** CPU
+(**248 saved**). That AUC is **not** comparable to the 1:1 fleet. Write to a
+**different** `--model-dir`.
 
 ```bash
 python xgboost_training_usa_30s.py --full-list --shared-universe --device cuda \
@@ -208,49 +164,95 @@ python xgboost_training_usa_30s.py --full-list --shared-universe --device cpu --
   --model-dir data/models_usa_30s_shared_cpu
 ```
 
-`--n-jobs 8` is the workstation comparison; `0` (default) uses all visible CPUs.
-The trainer prints Wall / peak RSS.
+`--n-jobs 8` is the workstation comparison; `0` (default) uses all visible
+CPUs. The trainer prints Wall / peak RSS.
 
-Needs ~6 GB RAM for the 61-layer stack. Does not touch `poc/` or `data/models/`.
+### Recommend
+
+```bash
+python recommend_usa_30s.py --lat 30.2672 --lon -97.7431 --goal shade --html maps/austin.html
+python recommend_usa_30s.py --address "Austin, Texas" --goal shade --html maps/austin.html
+```
+
+Each booster is loaded with `load_booster(..., device="cpu")`. For that pin the
+61-vector is scored as `p = predict_proba(x)[0, 1]`. Species with `p < 0.30`
+are dropped; the rest rank by `p * auc`. Invasive and naturalised trees are
+trained so the model knows them, then **dropped from the top-5** and listed
+under “do not plant”. Default recommend gate is AUC **≥ 0.70**.
+
+Open `maps/austin.html`. The page shows lat/lon, a 1 km cell, today vs 2050
+bars, and **species-wide** gain (not a local explanation of the pin). This
+path reads the **1:1** JSON in `data/models_usa_30s/` (255 saved) — not a
+`--shared-universe` speed-run.
+
+CONUS only. Pins outside the lower-48 envelope are rejected.
+
+### Suitability map
+
+Default live oak, south-central US crop — a bbox, not the full 7020×3060
+stack:
+
+```bash
+python suitability_maps_usa_30s.py --species "Quercus virginiana"
+# python suitability_maps_usa_30s.py --species "Quercus virginiana" --device cuda --batch-rows 1000000
+```
+
+Open `maps/Quercus_virginiana_usa_30s.html`.
 
 ---
 
-## USA 1 km — train the Deep SDM
+## DeepMaxent
 
 Same cleaned occurrences, same 61 layers, same target-group background, same
-spatial-block CV gate. DeepMaxent fits every species jointly in one network, so
-this is a single run rather than one per species.
+spatial-block CV gate. One network with an output per species — a single run
+rather than one booster per name.
+
+### Train
 
 ```bash
 python deepmaxent_training_usa_30s.py --smoke        # wiring check, ~1 min
 python deepmaxent_training_usa_30s.py --full-list    # 5 CV folds + final fit, ~2 min
 ```
 
-Needs ~6 GB RAM for the same 61-layer stack as the boosters. Of the ~2 min on
-one MI300X, the final fit is 18 s; the rest is the five CV folds.
+Of the ~2 min on one MI300X, the final fit is 18 s; the rest is the five CV
+folds. Writes `data/models_deepmaxent_usa_30s/deepmaxent_usa_30s.pt`,
+`metrics.csv` and `feature_names.txt`; leaves the boosters alone.
 
-Writes `data/models_deepmaxent_usa_30s/deepmaxent_usa_30s.pt`, `metrics.csv`
-and `feature_names.txt`; leaves the boosters alone. The defaults reproduce the
-shipped checkpoint. Architecture and epochs are upstream's, but the optimiser
-settings are retuned: `--weight-decay 2e-5` because upstream's `3e-4` was tuned
-on a far smaller benchmark and over-regularises this dataset at a cost of ~4.5
-AUC points, and `--learning-rate 1e-3 --batch-size 4096` purely for speed, at
-the same accuracy. Override with `--epochs`, `--batch-size`,
-`--learning-rate`, `--hidden-size`, `--hidden-nbr`, `--weight-decay`, `--loss`.
+Architecture and epochs are upstream's; optimiser settings are retuned:
+`--weight-decay 2e-5` (upstream `3e-4` over-regularises this dataset),
+`--learning-rate 1e-3 --batch-size 4096` for speed at the same accuracy.
+Override with `--epochs`, `--batch-size`, `--learning-rate`, `--hidden-size`,
+`--hidden-nbr`, `--weight-decay`, `--loss`.
+
+### Recommend
+
+```bash
+python recommend_usa_30s.py --model deepmaxent --lat 30.2672 --lon -97.7431 --goal shade --html maps/austin.html
+```
+
+Same pin contract as XGBoost (`p`, AUC gate, invasive drop). The per-layer
+panel is a **local sensitivity at that pin** — `|d lambda / d z|`, the score
+change per 1 SD of each layer.
+
+### Suitability map
+
+`suitability_maps_usa_30s.py` scores saved JSON boosters, not the DeepMaxent
+checkpoint. Use the XGBoost map command above, or score a pin with
+`--model deepmaxent`.
 
 ---
 
 ## 18 km global POC
 
-Separate contract: 42 layers on a 2160×1080 WorldClim grid, models in `data/models/`.
+Separate contract: 42 layers on a 2160×1080 WorldClim grid, models in
+`data/models/`. Do not point it at `data/country_data/USA`.
 
 ```bash
-python data/scripts/satellite_rasters.py          # 18 km site filters, not XGBoost features
+python data/scripts/satellite_rasters.py
 python poc/recommend.py --lat 51.51 --lon -0.13 --goal shade --html poc/maps/suggest.html
 python poc/suitability_maps.py --species "Quercus robur"
+python poc/xgboost_training.py
 ```
-
-Retrain that fleet with `python poc/xgboost_training.py`. Do not point it at `data/country_data/USA`.
 
 ---
 
@@ -269,6 +271,5 @@ python data/scripts/satellite_rasters_usa_30s.py    # USA 1 km filters
 ```
 
 USA 1 km climate/soil/terrain live in `data/country_data/USA/` (gitignored
-GeoTIFFs). Satellite vegetation is a **filter after scoring**, never an XGBoost
-input. The deep-learning pipeline uses a separate `country_data/` tree at the
-repo root.
+GeoTIFFs). Satellite vegetation is a **filter after scoring**, never an
+XGBoost input.
